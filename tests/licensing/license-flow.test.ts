@@ -172,7 +172,7 @@ describe('licensing end-to-end (real Postgres + real desktop client)', () => {
     const list = await srv.call('GET', '/v1/admin/customers?q=monthly', undefined, srv.adminToken);
     expect(list.body[0]!.email).toBe('monthly@jarvis.test');
     const audit = await srv.call('GET', '/v1/admin/audit?action=license', undefined, srv.adminToken);
-    const actions = (audit.body as Array<{ action: string }>).map((a) => a.action);
+    const actions = (audit.body as unknown as Array<{ action: string }>).map((a) => a.action);
     expect(actions).toEqual(expect.arrayContaining(['license.issue', 'license.activate', 'license.revoke']));
     const dash = await srv.call('GET', '/v1/admin/dashboard', undefined, srv.adminToken);
     expect(dash.body.customers).toBeGreaterThan(3);
