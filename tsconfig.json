@@ -8,6 +8,7 @@
     "agents/src",
     "skills/src",
     "tests",
-    "vitest.config.ts"
+    "vitest.config.ts",
+    "scripts/setup"
   ]
 }

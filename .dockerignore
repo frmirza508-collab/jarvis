@@ -1,0 +1,11 @@
+node_modules
+**/node_modules
+.git
+.cache
+dist
+**/dist
+**/target
+test-results
+.secrets
+.env
+.jarvis-data

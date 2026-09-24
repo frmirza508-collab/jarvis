@@ -45,7 +45,7 @@ Pass `--dev` to build an unlicensed development installer. See [docs/setup/RELEA
 
 - [Architecture](docs/architecture/ARCHITECTURE.md) · [Decisions](docs/architecture/DECISIONS.md)
 - [Installation](docs/setup/INSTALLATION.md) · [Developer guide](docs/setup/DEVELOPER_GUIDE.md) · [Release guide](docs/setup/RELEASE_GUIDE.md) · [Troubleshooting](docs/setup/TROUBLESHOOTING.md)
-- [Provider configuration](docs/setup/PROVIDERS.md)
+- [Provider configuration](docs/setup/PROVIDERS.md) · [Go-live guide (Roman Urdu)](docs/setup/GO_LIVE_URDU.md)
 - [Agent development](docs/agents/AGENT_DEVELOPMENT.md) · [Skill development](docs/skills/SKILL_DEVELOPMENT.md) · [Module development](docs/modules/MODULE_DEVELOPMENT.md)
 - [Licensing](docs/licensing/LICENSING.md) · [Security](docs/security/SECURITY.md)
 - [User manual](docs/user-manual/USER_MANUAL.md)

@@ -25,7 +25,8 @@
     "db:migrate": "pnpm --filter @jarvis/license-api migrate",
     "check": "pnpm typecheck && pnpm lint && pnpm test",
     "package:windows": "node scripts/build/package-windows.mjs",
-    "build:core": "pnpm --filter @jarvis/orchestrator build"
+    "build:core": "pnpm --filter @jarvis/orchestrator build",
+    "setup:server": "tsx scripts/setup/server-setup.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
