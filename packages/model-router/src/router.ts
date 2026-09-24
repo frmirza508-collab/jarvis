@@ -54,6 +54,13 @@ export class ModelRouter {
   private log: RequestLogEntry[] = [];
   private readonly logger = new Logger('model-router');
 
+  /**
+   * Output-token cap applied when a request sets none. Without it OpenRouter reserves the
+   * model's full output limit (e.g. 64k tokens) against the account's credit and rejects
+   * low-balance keys with HTTP 402.
+   */
+  defaultMaxTokens = 4096;
+
   constructor(private roles: RoleConfig = structuredClone(DEFAULT_ROLES)) {}
 
   register(p: ModelProvider): void {
@@ -122,7 +129,7 @@ export class ModelRouter {
       const p = this.providers.get(target.provider)!;
       const started = Date.now();
       try {
-        const full = { ...req, model: target.model };
+        const full = { ...req, model: target.model, maxTokens: req.maxTokens ?? this.defaultMaxTokens };
         const res = opts.onDelta && p.stream ? await p.stream(full, opts.onDelta) : await p.chat(full);
         this.record(
           {
@@ -160,6 +167,11 @@ export class ModelRouter {
         if (!retryable) break;
       }
     }
+    if (lastErr instanceof ProviderHttpError && lastErr.status === 402)
+      throw new JarvisError(
+        'PROVIDER_ERROR',
+        `Not enough model credit: add credit or raise the key's limit on openrouter.ai, or choose a cheaper model in Settings → Models. (${lastErr.message})`,
+      );
     throw new JarvisError(
       'PROVIDER_ERROR',
       lastErr instanceof Error ? lastErr.message : 'All model providers failed',

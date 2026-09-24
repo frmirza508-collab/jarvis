@@ -134,6 +134,29 @@ describe('model router', () => {
     router.register(provider('b', async () => 'ok'));
     await expect(router.chat('fast', { messages: [] })).rejects.toThrow(/bad key/);
   });
+  it('caps output tokens by default and explains 402 credit errors', async () => {
+    const seen: number[] = [];
+    const router = new ModelRouter({
+      fast: [{ provider: 'a', model: 'm1' }],
+      reasoning: [],
+      coding: [],
+      vision: [],
+      audio: [],
+      embedding: [],
+    });
+    router.register({
+      id: 'a',
+      isConfigured: () => true,
+      listModels: async () => [],
+      chat: async (r) => {
+        seen.push(r.maxTokens ?? -1);
+        throw new ProviderHttpError(402, 'a 402: requires more credits', false);
+      },
+    });
+    await expect(router.chat('fast', { messages: [] })).rejects.toThrow(/Not enough model credit/);
+    expect(seen).toEqual([4096]);
+  });
+
   it('reports NOT_CONFIGURED honestly when no provider is set up', async () => {
     await expect(new ModelRouter().chat('fast', { messages: [] })).rejects.toMatchObject({
       code: 'NOT_CONFIGURED',
