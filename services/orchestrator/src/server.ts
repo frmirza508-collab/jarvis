@@ -51,7 +51,7 @@ export async function createServer(opts: ServerOptions) {
   const { core, license } = opts;
   const app = Fastify({ logger: false, bodyLimit: 30 * 1024 * 1024 });
   const origins = opts.allowedOrigins ?? DEFAULT_ORIGINS;
-  await app.register(cors, { origin: (o, cb) => cb(null, !o || origins.includes(o)), credentials: false });
+  await app.register(cors, { origin: (o, cb) => cb(null, !o || origins.includes(o)), credentials: false, methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], allowedHeaders: ['Authorization', 'Content-Type', 'X-Language-Hint'] });
   await app.register(websocket);
   app.addContentTypeParser(/^audio\/.*/, { parseAs: 'buffer' }, (_req, body, done) => done(null, body));
 
@@ -82,6 +82,7 @@ export async function createServer(opts: ServerOptions) {
   );
 
   core.bus.onAny((event) => broadcast({ kind: 'bus', event }));
+  core.onLive((e) => broadcast(e));
   core.audit.onEntry((entry) => broadcast({ kind: 'audit', entry }));
   core.registry.onChange((r) => broadcast({ kind: 'agent', agent: { id: r.def.id, health: r.health, metrics: r.metrics, activeTasks: r.activeTasks } }));
 
@@ -113,7 +114,7 @@ export async function createServer(opts: ServerOptions) {
     platform: process.platform,
     capabilities: core.capabilities(),
     providers: core.router.listProviders(),
-    license: license?.status() ?? null,
+    license: license?.status() ?? { mode: 'development', premium: core.orchestrator.checkEntitlement().premium },
     agents: { total: core.registry.size(), byDepartment: Object.fromEntries(DEPARTMENTS.map((d) => [d, core.registry.list({ department: d }).length])) },
     activeRequests: core.orchestrator.activeRequests(),
     memory: core.memory.stats(),
@@ -296,7 +297,7 @@ export async function createServer(opts: ServerOptions) {
   });
 
   // --- license ------------------------------------------------------------------------
-  app.get('/license', async () => license?.status() ?? { mode: 'development', premium: true });
+  app.get('/license', async () => license?.status() ?? { mode: 'development', premium: core.orchestrator.checkEntitlement().premium });
   app.post('/license/activate', async (req) => {
     if (!license) throw new JarvisError('NOT_CONFIGURED', 'Licensing not configured');
     const { licenseKey } = z.object({ licenseKey: z.string().regex(/^JRV(-[0-9A-Z]{5}){4}$/i) }).parse(req.body);

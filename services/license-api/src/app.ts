@@ -48,7 +48,7 @@ export async function buildApp(opts: AppOptions) {
   ])
     providers.set(p.id, p);
 
-  await app.register(cors, { origin: config.ADMIN_ORIGINS.split(',').map((s) => s.trim()), credentials: false });
+  await app.register(cors, { origin: config.ADMIN_ORIGINS.split(',').map((s) => s.trim()), credentials: false, methods: ['GET', 'POST', 'PUT', 'DELETE'], allowedHeaders: ['Authorization', 'Content-Type'] });
   await app.register(rateLimit, { global: true, max: 300, timeWindow: '1 minute' });
 
   // Keep the raw body for webhook signature verification.

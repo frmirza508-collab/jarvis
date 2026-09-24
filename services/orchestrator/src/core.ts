@@ -14,6 +14,7 @@ import { BraveSearchProvider, SearchRouter, TavilySearchProvider, pageMetaTool, 
 import { PowerShellDriver, computerTools, type ComputerDriver } from '@jarvis/computer-control';
 import { OpenRouterAudioSTT, SpeechRouter, VoiceLanguageManager, WhisperCompatibleSTT, OpenAICompatibleTTS } from '@jarvis/voice';
 import { Orchestrator, memoryTools, type OrchestratorHooks } from '@jarvis/agent-runtime';
+import type { GraphEvent } from '@jarvis/task-engine';
 import { AGENT_CATALOG } from '@jarvis/agents-catalog';
 import { SKILL_CATALOG } from '@jarvis/skills-catalog';
 import { setLogRedactor, type CapabilityStatus } from '@jarvis/shared';
@@ -118,7 +119,26 @@ export function createJarvisCore(opts: CoreOptions = {}) {
   ]);
   const tts = new OpenAICompatibleTTS({ baseUrl: settings.tts.baseUrl, model: settings.tts.model, defaultVoice: settings.tts.voice, apiKey: secret('TTS_API_KEY'), fetchImpl: opts.fetchImpl });
 
-  const orchestrator = new Orchestrator({ bus, registry, router, tools, skills, memory, workspace: settings.workspace }, opts.hooks);
+  // Live graph/progress/reply-delta stream for UIs, layered over caller hooks.
+  type LiveEvent = { kind: 'graph'; requestId: string; event: GraphEvent } | { kind: 'delta'; requestId: string; text: string };
+  const liveListeners = new Set<(e: LiveEvent) => void>();
+  const emitLive = (e: LiveEvent) => {
+    for (const l of liveListeners) l(e);
+  };
+  const orchestrator = new Orchestrator(
+    { bus, registry, router, tools, skills, memory, workspace: settings.workspace },
+    {
+      ...opts.hooks,
+      onGraphEvent: (requestId, event) => {
+        opts.hooks?.onGraphEvent?.(requestId, event);
+        emitLive({ kind: 'graph', requestId, event });
+      },
+      onReplyDelta: (requestId, text) => {
+        opts.hooks?.onReplyDelta?.(requestId, text);
+        emitLive({ kind: 'delta', requestId, text });
+      },
+    },
+  );
 
   function capabilities(): CapabilityStatus[] {
     const modelOk = router.isRoleAvailable('reasoning');
@@ -159,6 +179,10 @@ export function createJarvisCore(opts: CoreOptions = {}) {
     orchestrator,
     capabilities,
     refreshAgentHealth,
+    onLive(fn: (e: LiveEvent) => void): () => void {
+      liveListeners.add(fn);
+      return () => liveListeners.delete(fn);
+    },
     async shutdown() {
       await browser.close();
       memory.close();
