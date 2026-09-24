@@ -1,0 +1,8 @@
+packages:
+  - packages/*
+  - services/*
+  - apps/*
+  - agents
+  - skills
+onlyBuiltDependencies:
+  - esbuild

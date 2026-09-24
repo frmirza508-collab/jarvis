@@ -1,0 +1,38 @@
+{
+  "name": "jarvis",
+  "private": true,
+  "version": "0.1.0",
+  "description": "JARVIS - voice-first, 3D, multi-agent AI operating layer for Windows",
+  "type": "module",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:unit": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
+    "test:e2e": "vitest run --project e2e",
+    "build": "pnpm -r --filter ./services/** --filter ./apps/** run build",
+    "dev:orchestrator": "pnpm --filter @jarvis/orchestrator dev",
+    "dev:license-api": "pnpm --filter @jarvis/license-api dev",
+    "dev:admin": "pnpm --filter @jarvis/admin dev",
+    "dev:desktop": "pnpm --filter @jarvis/desktop dev",
+    "db:migrate": "pnpm --filter @jarvis/license-api migrate",
+    "check": "pnpm typecheck && pnpm lint && pnpm test"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.20.4",
+    "eslint": "^10.11.0",
+    "prettier": "^3.9.9",
+    "tsx": "^4.23.15",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.70.1",
+    "vitest": "^5.0.1"
+  }
+}

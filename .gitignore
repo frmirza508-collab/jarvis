@@ -1,0 +1,17 @@
+node_modules/
+dist/
+build/
+coverage/
+target/
+*.log
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+.jarvis-data/
+apps/desktop/src-tauri/binaries/
+apps/desktop/src-tauri/gen/
+.DS_Store
+.vite/
+test-results/

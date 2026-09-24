@@ -1,0 +1,17 @@
+{
+  "name": "@jarvis/computer-control",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@jarvis/shared": "workspace:*",
+    "@jarvis/tool-runtime": "workspace:*",
+    "@jarvis/permissions": "workspace:*",
+    "zod": "^4.6.5"
+  }
+}
