@@ -6,7 +6,12 @@
 ; %APPDATA%\JARVIS (settings, encrypted secrets, memory, audit log) is preserved
 ; on update and, unless the user opts in, on uninstall.
 
-Unicode true
+; Native x64 installer when the amd64 stubs are available (JARVIS itself is x64-only).
+!if /FileExists "${NSISDIR}\Stubs\lzma_solid-amd64-unicode"
+  Target amd64-unicode
+!else
+  Unicode true
+!endif
 ManifestDPIAware true
 RequestExecutionLevel user
 SetCompressor /SOLID lzma
@@ -98,7 +103,7 @@ Function .onInit
   ; Windows 10 1809+ (build 17763) or Windows 11, 64-bit only.
   ${If} ${RunningX64}
   ${Else}
-    MessageBox MB_ICONSTOP "JARVIS requires 64-bit Windows 10 or 11."
+    MessageBox MB_ICONSTOP "JARVIS requires 64-bit Windows 10 or 11." /SD IDOK
     Abort
   ${EndIf}
 FunctionEnd
@@ -110,7 +115,7 @@ Function CheckWebView2
   ${EndIf}
   ${If} $0 == ""
   ${OrIf} $0 == "0.0.0.0"
-    MessageBox MB_YESNO|MB_ICONEXCLAMATION "JARVIS needs the Microsoft Edge WebView2 Runtime, which is not installed.$\r$\n$\r$\nOpen the official Microsoft download page now? (Install it, then start JARVIS.)" IDNO +2
+    MessageBox MB_YESNO|MB_ICONEXCLAMATION "JARVIS needs the Microsoft Edge WebView2 Runtime, which is not installed.$\r$\n$\r$\nOpen the official Microsoft download page now? (Install it, then start JARVIS.)" /SD IDNO IDNO +2
     ExecShell "open" "${WEBVIEW2_URL}"
     DetailPrint "WebView2 Runtime missing - user directed to Microsoft download."
   ${Else}
@@ -137,7 +142,7 @@ Section "JARVIS" SecMain
   File /r "${STAGE}\core-modules\*.*"
   SetOutPath "$INSTDIR"
   ${If} ${Errors}
-    MessageBox MB_ICONSTOP "Installation failed: some files could not be written to $INSTDIR. Close JARVIS and try again, or choose another folder."
+    MessageBox MB_ICONSTOP "Installation failed: some files could not be written to $INSTDIR. Close JARVIS and try again, or choose another folder." /SD IDOK
     Abort
   ${EndIf}
 
