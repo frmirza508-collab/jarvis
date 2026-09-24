@@ -4,7 +4,7 @@
 
 ### Desktop (Windows)
 
-- 3D command space: JARVIS core, voice field, agent constellation, live task graph, module stations and a memory cloud, with holographic glass panels. WebGPU with automatic WebGL fallback, quality tiers and reduced motion.
+- 3D command space: JARVIS core, voice field, agent constellation, live task graph, module stations and a memory cloud, with holographic glass panels. WebGL rendering (WebGPU experimental, opt-in), quality tiers and reduced motion.
 - Voice-first input in English, Urdu (including Roman Urdu) and Mandarin; barge-in; Windows voices for speech output.
 - Permission prompts with risk levels, "always allow here" rules, and a hard block-list for destructive system changes.
 - Account view: licence activation, subscription status, plans (PKR 4,000/month, PKR 40,000/year).

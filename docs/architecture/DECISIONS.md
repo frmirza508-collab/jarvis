@@ -18,7 +18,7 @@ selected from the live npm / crates.io registries on 2026-09-24.
 ## D2. Desktop: Tauri 2 + React 19 + Three.js (r186) via React Three Fiber 9
 
 - Tauri gives a small native Windows shell on WebView2 with Rust access to the OS credential vault.
-- 3D: Three.js with **WebGPU when available, automatic WebGL2 fallback** (`three/webgpu` `WebGPURenderer`). Only built-in materials/instanced meshes are used so both renderers draw the same scene (custom GLSL `ShaderMaterial` is not supported by WebGPURenderer).
+- 3D: Three.js with **WebGL2 by default; WebGPU opt-in (experimental)** (`three/webgpu` `WebGPURenderer`). Only built-in materials/instanced meshes are used so both renderers draw the same scene (custom GLSL `ShaderMaterial` is not supported by WebGPURenderer).
 - Dense information lives in accessible 2D "glass" panels layered over the 3D space; `drei` `Html` labels only for hovered/selected nodes (performance).
 - Quality tiers + drei `PerformanceMonitor` auto-downgrade; reduced-motion mode.
 

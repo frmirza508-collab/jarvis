@@ -22,9 +22,9 @@ type RendererProps = {
  * WebGL2. Any WebGPU initialisation failure falls back to WebGL transparently.
  */
 async function createRenderer(props: RendererProps, prefs: Prefs): Promise<THREE.WebGLRenderer> {
-  const wantGpu =
-    prefs.renderer === 'webgpu' ||
-    (prefs.renderer === 'auto' && typeof navigator !== 'undefined' && 'gpu' in navigator);
+  // WebGPU is opt-in: drei helpers used in the scene (Stars, Line) rely on GLSL shaders that
+  // WebGPURenderer cannot draw, which left the scene black on real WebView2 installs.
+  const wantGpu = prefs.renderer === 'webgpu' && typeof navigator !== 'undefined' && 'gpu' in navigator;
   if (wantGpu) {
     try {
       const gpu = (navigator as Navigator & { gpu?: { requestAdapter: () => Promise<unknown> } }).gpu;

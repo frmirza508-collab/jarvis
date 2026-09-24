@@ -442,9 +442,9 @@ function Display() {
           value={prefs.renderer}
           onChange={(e) => setPrefs({ renderer: e.target.value as typeof prefs.renderer })}
         >
-          <option value="auto">Auto (WebGPU when available)</option>
+          <option value="auto">Auto (WebGL, recommended)</option>
           <option value="webgl">WebGL</option>
-          <option value="webgpu">WebGPU</option>
+          <option value="webgpu">WebGPU (experimental)</option>
         </select>
       </label>
       <p className="hint">
