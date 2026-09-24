@@ -20,6 +20,12 @@ keyring = { version = "3", features = ["windows-native", "apple-native", "linux-
 getrandom = "0.2"
 base64 = "0.22"
 
+[features]
+# Production builds serve the bundled UI (tauri:// protocol). `tauri build` enables this
+# automatically; plain `cargo build` must pass `--features custom-protocol`, otherwise the
+# app tries to load the dev server (http://localhost:1420).
+custom-protocol = ["tauri/custom-protocol"]
+
 [profile.release]
 codegen-units = 1
 lto = true

@@ -59,7 +59,7 @@ jobs:
           mkdir -p apps/desktop/dist apps/desktop/src-tauri/binaries
           echo '<!doctype html>' > apps/desktop/dist/index.html
           touch apps/desktop/src-tauri/binaries/jarvis-core-x86_64-pc-windows-gnu.exe
-      - run: cargo clippy --release --target x86_64-pc-windows-gnu -- -D warnings
+      - run: cargo clippy --release --features custom-protocol --target x86_64-pc-windows-gnu -- -D warnings
         working-directory: apps/desktop/src-tauri
 
   windows-installer:
