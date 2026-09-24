@@ -1,5 +1,11 @@
 import { z } from 'zod';
-import { emptyMetrics, successRate, type OperationalMetrics, type PermissionCategory, PERMISSION_CATEGORIES } from '@jarvis/shared';
+import {
+  emptyMetrics,
+  successRate,
+  type OperationalMetrics,
+  type PermissionCategory,
+  PERMISSION_CATEGORIES,
+} from '@jarvis/shared';
 
 export const DEPARTMENTS = [
   'executive',
@@ -116,7 +122,10 @@ export class AgentRegistry {
   findByCapability(capability: string): AgentRecord[] {
     return this.list()
       .filter((a) => a.health.state !== 'disabled' && a.def.capabilities.includes(capability))
-      .sort((a, b) => (successRate(b.metrics) ?? 0.5) - (successRate(a.metrics) ?? 0.5) || a.activeTasks - b.activeTasks);
+      .sort(
+        (a, b) =>
+          (successRate(b.metrics) ?? 0.5) - (successRate(a.metrics) ?? 0.5) || a.activeTasks - b.activeTasks,
+      );
   }
 
   markStart(id: string): void {
@@ -129,7 +138,10 @@ export class AgentRegistry {
     this.emit(r);
   }
 
-  markEnd(id: string, outcome: { ok: boolean; latencyMs: number; toolErrors?: number; error?: string; corrected?: boolean }): void {
+  markEnd(
+    id: string,
+    outcome: { ok: boolean; latencyMs: number; toolErrors?: number; error?: string; corrected?: boolean },
+  ): void {
     const r = this.agents.get(id);
     if (!r) return;
     r.activeTasks = Math.max(0, r.activeTasks - 1);
@@ -146,7 +158,11 @@ export class AgentRegistry {
     }
     if (r.health.state !== 'disabled') {
       r.health.state =
-        r.health.consecutiveFailures >= this.degradeAfterFailures ? 'degraded' : r.activeTasks > 0 ? 'busy' : 'idle';
+        r.health.consecutiveFailures >= this.degradeAfterFailures
+          ? 'degraded'
+          : r.activeTasks > 0
+            ? 'busy'
+            : 'idle';
     }
     this.emit(r);
   }

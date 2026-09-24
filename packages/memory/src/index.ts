@@ -8,7 +8,17 @@ import { redactString } from '@jarvis/security';
  * Memory layers. Scope ids qualify a layer (project path, agent id, department,
  * session id). "global" and "preference" layers have no scope id.
  */
-export const MEMORY_SCOPES = ['session', 'preference', 'project', 'task', 'agent', 'department', 'global', 'knowledge', 'lesson'] as const;
+export const MEMORY_SCOPES = [
+  'session',
+  'preference',
+  'project',
+  'task',
+  'agent',
+  'department',
+  'global',
+  'knowledge',
+  'lesson',
+] as const;
 export type MemoryScope = (typeof MEMORY_SCOPES)[number];
 
 export interface MemoryItem {
@@ -135,7 +145,9 @@ export class MemoryStore {
         now,
         expires,
       );
-    this.db.prepare('INSERT INTO memories_fts (content, tags, id) VALUES (?, ?, ?)').run(content, tags.join(' '), id);
+    this.db
+      .prepare('INSERT INTO memories_fts (content, tags, id) VALUES (?, ?, ?)')
+      .run(content, tags.join(' '), id);
     return this.get(id)!;
   }
 
@@ -144,14 +156,29 @@ export class MemoryStore {
     return r ? rowToItem(r) : undefined;
   }
 
-  update(id: string, patch: Partial<Pick<MemoryItem, 'content' | 'tags' | 'verified' | 'evidence' | 'importance'>>): MemoryItem | undefined {
+  update(
+    id: string,
+    patch: Partial<Pick<MemoryItem, 'content' | 'tags' | 'verified' | 'evidence' | 'importance'>>,
+  ): MemoryItem | undefined {
     const cur = this.get(id);
     if (!cur) return undefined;
     const next = { ...cur, ...patch, content: patch.content ? redactString(patch.content) : cur.content };
     this.db
-      .prepare('UPDATE memories SET content=?, tags=?, verified=?, evidence=?, importance=?, updated_at=? WHERE id=?')
-      .run(next.content, JSON.stringify(next.tags), next.verified ? 1 : 0, next.evidence ?? null, next.importance, new Date().toISOString(), id);
-    this.db.prepare('UPDATE memories_fts SET content=?, tags=? WHERE id=?').run(next.content, next.tags.join(' '), id);
+      .prepare(
+        'UPDATE memories SET content=?, tags=?, verified=?, evidence=?, importance=?, updated_at=? WHERE id=?',
+      )
+      .run(
+        next.content,
+        JSON.stringify(next.tags),
+        next.verified ? 1 : 0,
+        next.evidence ?? null,
+        next.importance,
+        new Date().toISOString(),
+        id,
+      );
+    this.db
+      .prepare('UPDATE memories_fts SET content=?, tags=? WHERE id=?')
+      .run(next.content, next.tags.join(' '), id);
     return this.get(id);
   }
 
@@ -160,7 +187,9 @@ export class MemoryStore {
     return Number(this.db.prepare('DELETE FROM memories WHERE id = ?').run(id).changes) > 0;
   }
 
-  list(filter: { scope?: MemoryScope; scopeId?: string; verified?: boolean; limit?: number } = {}): MemoryItem[] {
+  list(
+    filter: { scope?: MemoryScope; scopeId?: string; verified?: boolean; limit?: number } = {},
+  ): MemoryItem[] {
     const where: string[] = ['(expires_at IS NULL OR expires_at > ?)'];
     const args: Array<string | number> = [new Date().toISOString()];
     if (filter.scope) {
@@ -176,12 +205,17 @@ export class MemoryStore {
       args.push(filter.verified ? 1 : 0);
     }
     args.push(filter.limit ?? 200);
-    const rows = this.db.prepare(`SELECT * FROM memories WHERE ${where.join(' AND ')} ORDER BY updated_at DESC LIMIT ?`).all(...args) as Row[];
+    const rows = this.db
+      .prepare(`SELECT * FROM memories WHERE ${where.join(' AND ')} ORDER BY updated_at DESC LIMIT ?`)
+      .all(...args) as Row[];
     return rows.map(rowToItem);
   }
 
   /** Full-text search. Queries shorter than 3 chars (common in Chinese) fall back to LIKE. */
-  search(query: string, opts: { scopes?: MemoryScope[]; scopeId?: string; limit?: number; verifiedOnly?: boolean } = {}): MemoryItem[] {
+  search(
+    query: string,
+    opts: { scopes?: MemoryScope[]; scopeId?: string; limit?: number; verifiedOnly?: boolean } = {},
+  ): MemoryItem[] {
     const q = query.trim();
     if (!q) return [];
     const limit = opts.limit ?? 10;
@@ -189,9 +223,17 @@ export class MemoryStore {
     let ids: string[];
     if (terms.length) {
       const match = terms.map((t) => `"${t.replace(/"/g, '""')}"`).join(' OR ');
-      ids = (this.db.prepare('SELECT id FROM memories_fts WHERE memories_fts MATCH ? ORDER BY rank LIMIT ?').all(match, limit * 5) as Row[]).map((r) => String(r.id));
+      ids = (
+        this.db
+          .prepare('SELECT id FROM memories_fts WHERE memories_fts MATCH ? ORDER BY rank LIMIT ?')
+          .all(match, limit * 5) as Row[]
+      ).map((r) => String(r.id));
     } else {
-      ids = (this.db.prepare('SELECT id FROM memories WHERE content LIKE ? LIMIT ?').all(`%${q}%`, limit * 5) as Row[]).map((r) => String(r.id));
+      ids = (
+        this.db
+          .prepare('SELECT id FROM memories WHERE content LIKE ? LIMIT ?')
+          .all(`%${q}%`, limit * 5) as Row[]
+      ).map((r) => String(r.id));
     }
     const now = new Date().toISOString();
     const out: MemoryItem[] = [];
@@ -200,19 +242,35 @@ export class MemoryStore {
       if (!it) continue;
       if (it.expiresAt && it.expiresAt <= now) continue;
       if (opts.scopes && !opts.scopes.includes(it.scope)) continue;
-      if (opts.scopeId !== undefined && it.scopeId !== opts.scopeId && it.scope !== 'global' && it.scope !== 'preference') continue;
+      if (
+        opts.scopeId !== undefined &&
+        it.scopeId !== opts.scopeId &&
+        it.scope !== 'global' &&
+        it.scope !== 'preference'
+      )
+        continue;
       if (opts.verifiedOnly && !it.verified) continue;
       out.push(it);
       if (out.length >= limit) break;
     }
-    const touch = this.db.prepare('UPDATE memories SET last_used_at = ?, use_count = use_count + 1 WHERE id = ?');
+    const touch = this.db.prepare(
+      'UPDATE memories SET last_used_at = ?, use_count = use_count + 1 WHERE id = ?',
+    );
     for (const it of out) touch.run(now, it.id);
     return out;
   }
 
   // ---- Learning loop: lessons are stored unverified and only reused once verified.
   proposeLesson(content: string, source: string, tags: string[] = []): MemoryItem {
-    return this.remember({ scope: 'lesson', kind: 'lesson', content, source, tags, verified: false, importance: 0.6 });
+    return this.remember({
+      scope: 'lesson',
+      kind: 'lesson',
+      content,
+      source,
+      tags,
+      verified: false,
+      importance: 0.6,
+    });
   }
 
   verifyLesson(id: string, evidence: string): MemoryItem | undefined {
@@ -230,7 +288,9 @@ export class MemoryStore {
   // ---- Preferences
   setPreference(key: string, value: unknown): void {
     this.db
-      .prepare('INSERT INTO preferences (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at')
+      .prepare(
+        'INSERT INTO preferences (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at',
+      )
       .run(key, JSON.stringify(value), new Date().toISOString());
   }
 
@@ -247,21 +307,36 @@ export class MemoryStore {
   // ---- Task history
   recordTask(t: TaskHistoryRecord): void {
     this.db
-      .prepare('INSERT OR REPLACE INTO task_history (id, request, language, status, summary, agents, started_at, finished_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(t.id, redactString(t.request), t.language ?? null, t.status, redactString(t.summary), JSON.stringify(t.agents), t.startedAt, t.finishedAt);
+      .prepare(
+        'INSERT OR REPLACE INTO task_history (id, request, language, status, summary, agents, started_at, finished_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      )
+      .run(
+        t.id,
+        redactString(t.request),
+        t.language ?? null,
+        t.status,
+        redactString(t.summary),
+        JSON.stringify(t.agents),
+        t.startedAt,
+        t.finishedAt,
+      );
   }
 
   /** Crash recovery: tasks still marked running from a previous process are marked interrupted. */
   markInterruptedTasks(): number {
     return Number(
       this.db
-        .prepare("UPDATE task_history SET status = 'interrupted', summary = 'Interrupted: JARVIS was closed or crashed before this task finished.' WHERE status = 'running'")
+        .prepare(
+          "UPDATE task_history SET status = 'interrupted', summary = 'Interrupted: JARVIS was closed or crashed before this task finished.' WHERE status = 'running'",
+        )
         .run().changes,
     );
   }
 
   taskHistory(limit = 50): TaskHistoryRecord[] {
-    const rows = this.db.prepare('SELECT * FROM task_history ORDER BY finished_at DESC LIMIT ?').all(limit) as Row[];
+    const rows = this.db
+      .prepare('SELECT * FROM task_history ORDER BY finished_at DESC LIMIT ?')
+      .all(limit) as Row[];
     return rows.map((r) => ({
       id: String(r.id),
       request: String(r.request),
@@ -291,7 +366,9 @@ export class MemoryStore {
       args.push(new Date(Date.now() - opts.olderThanDays * 86_400_000).toISOString());
     }
     const cond = where.length ? where.join(' AND ') : '1=1';
-    const ids = (this.db.prepare(`SELECT id FROM memories WHERE ${cond}`).all(...args) as Row[]).map((r) => String(r.id));
+    const ids = (this.db.prepare(`SELECT id FROM memories WHERE ${cond}`).all(...args) as Row[]).map((r) =>
+      String(r.id),
+    );
     for (const id of ids) this.forget(id);
     return ids.length;
   }

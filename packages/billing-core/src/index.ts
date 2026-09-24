@@ -16,11 +16,35 @@ export interface Plan {
   entitlements: string[];
 }
 
-export const PREMIUM_ENTITLEMENTS = ['premium.execution', 'agents.all', 'voice', 'computer-control', 'browser', 'research', 'coding'] as const;
+export const PREMIUM_ENTITLEMENTS = [
+  'premium.execution',
+  'agents.all',
+  'voice',
+  'computer-control',
+  'browser',
+  'research',
+  'coding',
+] as const;
 
 export const PLANS: Record<Plan['code'], Plan> = {
-  monthly: { code: 'monthly', name: 'JARVIS Monthly', amount: 4000, currency: 'PKR', interval: 'month', intervalCount: 1, entitlements: [...PREMIUM_ENTITLEMENTS] },
-  yearly: { code: 'yearly', name: 'JARVIS Yearly', amount: 40000, currency: 'PKR', interval: 'year', intervalCount: 1, entitlements: [...PREMIUM_ENTITLEMENTS] },
+  monthly: {
+    code: 'monthly',
+    name: 'JARVIS Monthly',
+    amount: 4000,
+    currency: 'PKR',
+    interval: 'month',
+    intervalCount: 1,
+    entitlements: [...PREMIUM_ENTITLEMENTS],
+  },
+  yearly: {
+    code: 'yearly',
+    name: 'JARVIS Yearly',
+    amount: 40000,
+    currency: 'PKR',
+    interval: 'year',
+    intervalCount: 1,
+    entitlements: [...PREMIUM_ENTITLEMENTS],
+  },
 };
 
 /** Add calendar months, clamping to month end (Jan 31 + 1 month = Feb 28/29). */
@@ -59,7 +83,11 @@ export interface SubscriptionSnapshot {
  * Server-side decision: until when (if at all) premium execution is allowed.
  * Returns null when no premium access applies at `now`.
  */
-export function entitlementUntil(sub: SubscriptionSnapshot, policy: EntitlementPolicy, now: Date): Date | null {
+export function entitlementUntil(
+  sub: SubscriptionSnapshot,
+  policy: EntitlementPolicy,
+  now: Date,
+): Date | null {
   const end = sub.currentPeriodEnd.getTime();
   const grace = policy.graceHours * 3_600_000;
   let until: number | null = null;
@@ -82,7 +110,11 @@ export function entitlementUntil(sub: SubscriptionSnapshot, policy: EntitlementP
 }
 
 /** Status to persist when time passes (run by the expiry job). */
-export function reconcileStatus(sub: SubscriptionSnapshot, policy: EntitlementPolicy, now: Date): SubscriptionStatus {
+export function reconcileStatus(
+  sub: SubscriptionSnapshot,
+  policy: EntitlementPolicy,
+  now: Date,
+): SubscriptionStatus {
   if (sub.status === 'suspended' || sub.status === 'expired') return sub.status;
   const end = sub.currentPeriodEnd.getTime();
   if (now.getTime() < end) return sub.status;
@@ -99,7 +131,13 @@ export function reconcileStatus(sub: SubscriptionSnapshot, policy: EntitlementPo
 export const BillingEventSchema = z.object({
   provider: z.string(),
   providerEventId: z.string(),
-  type: z.enum(['payment.succeeded', 'payment.failed', 'subscription.renewed', 'subscription.canceled', 'refund.issued']),
+  type: z.enum([
+    'payment.succeeded',
+    'payment.failed',
+    'subscription.renewed',
+    'subscription.canceled',
+    'refund.issued',
+  ]),
   customerRef: z.string().optional(),
   customerEmail: z.string().email().optional(),
   subscriptionRef: z.string().optional(),
@@ -134,7 +172,10 @@ export interface BillingProvider {
   isConfigured(): boolean;
   createCheckout(req: CheckoutRequest): Promise<CheckoutSession>;
   /** Verify the webhook signature against the RAW body and map to normalised events. Throws when invalid. */
-  parseWebhook(rawBody: Buffer, headers: Record<string, string | string[] | undefined>): Promise<BillingEvent[]>;
+  parseWebhook(
+    rawBody: Buffer,
+    headers: Record<string, string | string[] | undefined>,
+  ): Promise<BillingEvent[]>;
 }
 
 export class WebhookVerificationError extends Error {

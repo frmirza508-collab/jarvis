@@ -23,7 +23,8 @@ d('desktop UI (real browser, real local core)', () => {
   let core: ReturnType<typeof createJarvisCore>;
   let ws: string;
   const TOKEN = 't'.repeat(64);
-  const nav = (name: string) => page.getByRole('navigation', { name: 'Views' }).getByRole('button', { name, exact: true });
+  const nav = (name: string) =>
+    page.getByRole('navigation', { name: 'Views' }).getByRole('button', { name, exact: true });
 
   beforeAll(async () => {
     mkdirSync(shots, { recursive: true });
@@ -35,21 +36,63 @@ d('desktop UI (real browser, real local core)', () => {
       const user = String(r.messages[1]?.content ?? '');
       if (s.includes('planning core')) {
         if (user.includes('hello')) return JSON.stringify({ mode: 'direct', language: 'en' });
-        return JSON.stringify({ mode: 'delegate', language: 'en', tasks: [{ id: 'clean', agent: 'file-operations', goal: 'Delete old.log in the workspace' }, { id: 'note', agent: 'documentation', goal: 'Write cleanup-report.md', dependsOn: ['clean'] }] });
+        return JSON.stringify({
+          mode: 'delegate',
+          language: 'en',
+          tasks: [
+            { id: 'clean', agent: 'file-operations', goal: 'Delete old.log in the workspace' },
+            { id: 'note', agent: 'documentation', goal: 'Write cleanup-report.md', dependsOn: ['clean'] },
+          ],
+        });
       }
       if (s.includes('File Operations Agent'))
-        return r.messages.some((m) => m.role === 'tool') ? 'Deleted old.log' : { toolCalls: [{ id: 'd1', type: 'function', function: { name: 'fs__delete', arguments: JSON.stringify({ path: 'old.log' }) } }] };
+        return r.messages.some((m) => m.role === 'tool')
+          ? 'Deleted old.log'
+          : {
+              toolCalls: [
+                {
+                  id: 'd1',
+                  type: 'function',
+                  function: { name: 'fs__delete', arguments: JSON.stringify({ path: 'old.log' }) },
+                },
+              ],
+            };
       if (s.includes('Documentation Agent'))
-        return r.messages.some((m) => m.role === 'tool') ? 'Report written' : { toolCalls: [{ id: 'w1', type: 'function', function: { name: 'fs__write', arguments: JSON.stringify({ path: 'cleanup-report.md', content: '# Cleanup\nold.log removed' }) } }] };
-      if (s.includes('Present ONE')) return 'Cleanup complete: old.log deleted and cleanup-report.md written.';
+        return r.messages.some((m) => m.role === 'tool')
+          ? 'Report written'
+          : {
+              toolCalls: [
+                {
+                  id: 'w1',
+                  type: 'function',
+                  function: {
+                    name: 'fs__write',
+                    arguments: JSON.stringify({
+                      path: 'cleanup-report.md',
+                      content: '# Cleanup\nold.log removed',
+                    }),
+                  },
+                },
+              ],
+            };
+      if (s.includes('Present ONE'))
+        return 'Cleanup complete: old.log deleted and cleanup-report.md written.';
       if (s.includes('reusable')) return JSON.stringify({ lesson: null });
       return 'Hello! How can I help?';
     });
-    core = createJarvisCore({ extraProviders: [provider], settings: { workspace: ws }, hooks: { checkEntitlement: () => ({ premium: true }) } });
+    core = createJarvisCore({
+      extraProviders: [provider],
+      settings: { workspace: ws },
+      hooks: { checkEntitlement: () => ({ premium: true }) },
+    });
     site = await serveDir(dist);
     app = await createServer({ core, token: TOKEN, version: 'ui-test', allowedOrigins: [site.url] });
     const coreUrl = await app.listen({ host: '127.0.0.1', port: 0 });
-    browser = await chromium.launch({ executablePath: exe, headless: true, args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+    browser = await chromium.launch({
+      executablePath: exe,
+      headless: true,
+      args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'],
+    });
     page = await browser.newPage({ viewport: { width: 1600, height: 950 } });
     page.on('pageerror', (e) => console.error('PAGE ERROR', e.message));
     page.on('console', (m) => m.type() === 'error' && console.error('CONSOLE', m.text()));
@@ -77,7 +120,13 @@ d('desktop UI (real browser, real local core)', () => {
   it('answers a direct request', async () => {
     await page.getByRole('textbox', { name: 'Command' }).fill('hello jarvis');
     await page.keyboard.press('Enter');
-    await page.getByText('Hello! How can I help?').waitFor({ timeout: 15_000 }).catch(async (e) => { console.error('LOG>>', await page.locator('.log').innerText()); throw e; });
+    await page
+      .getByText('Hello! How can I help?')
+      .waitFor({ timeout: 15_000 })
+      .catch(async (e) => {
+        console.error('LOG>>', await page.locator('.log').innerText());
+        throw e;
+      });
   });
 
   it('shows a critical permission prompt, and executes only after approval', async () => {
@@ -125,7 +174,10 @@ d('desktop UI (real browser, real local core)', () => {
   it('stores provider keys through Settings without echoing them', async () => {
     await nav('Settings').click();
     await page.getByLabel(/Brave Search API key/).fill('brave-ui-test-key-123');
-    await page.locator('.secret-row', { hasText: 'Brave Search' }).getByRole('button', { name: 'Save' }).click();
+    await page
+      .locator('.secret-row', { hasText: 'Brave Search' })
+      .getByRole('button', { name: 'Save' })
+      .click();
     await page.getByText('Saved securely').waitFor();
     expect(core.secrets.get('BRAVE_SEARCH_API_KEY')).toBe('brave-ui-test-key-123');
     expect(await page.content()).not.toContain('brave-ui-test-key-123');

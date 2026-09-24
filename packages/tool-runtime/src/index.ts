@@ -26,7 +26,10 @@ export interface ToolDefinition<S extends z.ZodType = z.ZodType, O = unknown> {
   categories: PermissionCategory[];
   input: S;
   /** Dynamic risk assessment for a concrete input (e.g. shell command analysis). */
-  assess?: (input: z.infer<S>, ctx: ToolContext) => { risk: RiskLevel; target?: string; description?: string; blocked?: boolean; reasons?: string[] };
+  assess?: (
+    input: z.infer<S>,
+    ctx: ToolContext,
+  ) => { risk: RiskLevel; target?: string; description?: string; blocked?: boolean; reasons?: string[] };
   execute: (input: z.infer<S>, ctx: ToolContext) => Promise<O>;
   /** Honest runtime availability (e.g. unsupported on this OS). */
   status?: () => CapabilityStatus['state'];
@@ -74,7 +77,10 @@ export class ToolRuntime {
   }
 
   /** JSON-schema tool list for function-calling models. */
-  schemas(ids?: string[]): Array<{ type: 'function'; function: { name: string; description: string; parameters: Record<string, unknown> } }> {
+  schemas(ids?: string[]): Array<{
+    type: 'function';
+    function: { name: string; description: string; parameters: Record<string, unknown> };
+  }> {
     return this.list()
       .filter((t) => (!ids || ids.includes(t.id)) && (t.status?.() ?? 'active') === 'active')
       .map((t) => ({
@@ -99,13 +105,24 @@ export class ToolRuntime {
     const tool = this.tools.get(id);
     if (!tool) throw new JarvisError('NOT_FOUND', `Unknown tool: ${id}`);
     const state = tool.status?.() ?? 'active';
-    if (state !== 'active') throw new JarvisError('UNSUPPORTED_PLATFORM', `${tool.title} is ${state}: ${tool.statusReason?.() ?? ''}`);
+    if (state !== 'active')
+      throw new JarvisError(
+        'UNSUPPORTED_PLATFORM',
+        `${tool.title} is ${state}: ${tool.statusReason?.() ?? ''}`,
+      );
     const parsed = tool.input.safeParse(rawInput);
-    if (!parsed.success) throw new JarvisError('INVALID_INPUT', `Invalid input for ${id}: ${parsed.error.message}`);
+    if (!parsed.success)
+      throw new JarvisError('INVALID_INPUT', `Invalid input for ${id}: ${parsed.error.message}`);
     const input = parsed.data;
     const a = tool.assess?.(input, ctx);
     if (a?.blocked) {
-      this.audit.record({ actor: ctx.actor, action: `tool:${id}`, target: a.target, outcome: 'denied', details: { reason: 'blocked', reasons: a.reasons } });
+      this.audit.record({
+        actor: ctx.actor,
+        action: `tool:${id}`,
+        target: a.target,
+        outcome: 'denied',
+        details: { reason: 'blocked', reasons: a.reasons },
+      });
       throw new JarvisError('PERMISSION_DENIED', `Blocked by safety policy: ${(a.reasons ?? []).join(', ')}`);
     }
     const check = await this.permissions.request({
@@ -125,8 +142,20 @@ export class ToolRuntime {
       return out;
     } catch (e) {
       const je = toJarvisError(e);
-      this.calls.push({ toolId: id, actor: ctx.actor, ok: false, latencyMs: Date.now() - started, error: je.message });
-      this.audit.record({ actor: ctx.actor, action: `tool:${id}`, target: a?.target, outcome: 'failure', details: { error: je.message } });
+      this.calls.push({
+        toolId: id,
+        actor: ctx.actor,
+        ok: false,
+        latencyMs: Date.now() - started,
+        error: je.message,
+      });
+      this.audit.record({
+        actor: ctx.actor,
+        action: `tool:${id}`,
+        target: a?.target,
+        outcome: 'failure',
+        details: { error: je.message },
+      });
       throw je;
     }
   }

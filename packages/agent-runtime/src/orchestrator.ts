@@ -122,26 +122,53 @@ Respond with JSON only: {"mode":"direct"|"delegate","language":"en"|"ur"|"zh"|<i
     return plan;
   }
 
-  private async review(requestId: string, reviewerId: string, task: TaskSpec, output: TaskOutput, signal: AbortSignal): Promise<{ approved: boolean; issues: string[] }> {
+  private async review(
+    requestId: string,
+    reviewerId: string,
+    task: TaskSpec,
+    output: TaskOutput,
+    signal: AbortSignal,
+  ): Promise<{ approved: boolean; issues: string[] }> {
     const { bus, router, registry } = this.deps;
-    bus.publish({ type: 'REVIEW_REQUEST', from: 'orchestrator', to: reviewerId, taskId: task.taskId, correlationId: requestId, payload: { output, criteria: [task.goal] } });
+    bus.publish({
+      type: 'REVIEW_REQUEST',
+      from: 'orchestrator',
+      to: reviewerId,
+      taskId: task.taskId,
+      correlationId: requestId,
+      payload: { output, criteria: [task.goal] },
+    });
     const reviewer = registry.get(reviewerId) ?? registry.get('qa-reviewer');
     const res = await router.chat(reviewer?.def.modelRole ?? 'reasoning', {
       signal,
       temperature: 0,
       responseFormat: 'json_object',
       messages: [
-        { role: 'system', content: `${reviewer?.def.instructions ?? 'You review work.'}\nReview the deliverable strictly against the goal. Respond JSON {"approved": boolean, "issues": [string]}. Approve unless there are concrete, material problems.` },
-        { role: 'user', content: `Goal: ${task.goal}\nDeliverable summary: ${output.summary}\nArtifacts: ${output.artifacts.map((a) => a.value).join(', ') || 'none'}\nEvidence: ${output.evidence.map((e) => e.source).join(', ') || 'none'}` },
+        {
+          role: 'system',
+          content: `${reviewer?.def.instructions ?? 'You review work.'}\nReview the deliverable strictly against the goal. Respond JSON {"approved": boolean, "issues": [string]}. Approve unless there are concrete, material problems.`,
+        },
+        {
+          role: 'user',
+          content: `Goal: ${task.goal}\nDeliverable summary: ${output.summary}\nArtifacts: ${output.artifacts.map((a) => a.value).join(', ') || 'none'}\nEvidence: ${output.evidence.map((e) => e.source).join(', ') || 'none'}`,
+        },
       ],
     });
     let verdict: { approved: boolean; issues: string[] };
     try {
-      verdict = z.object({ approved: z.boolean(), issues: z.array(z.string()).default([]) }).parse(parseJson(res.content));
+      verdict = z
+        .object({ approved: z.boolean(), issues: z.array(z.string()).default([]) })
+        .parse(parseJson(res.content));
     } catch {
       verdict = { approved: true, issues: [] };
     }
-    bus.publish({ type: 'REVIEW_RESULT', from: reviewer?.def.id ?? reviewerId, taskId: task.taskId, correlationId: requestId, payload: verdict });
+    bus.publish({
+      type: 'REVIEW_RESULT',
+      from: reviewer?.def.id ?? reviewerId,
+      taskId: task.taskId,
+      correlationId: requestId,
+      payload: verdict,
+    });
     return verdict;
   }
 
@@ -149,14 +176,20 @@ Respond with JSON only: {"mode":"direct"|"delegate","language":"en"|"ur"|"zh"|<i
   verify(outputs: Record<string, TaskOutput>): { ok: boolean; problems: string[] } {
     const problems: string[] = [];
     for (const [id, o] of Object.entries(outputs))
-      for (const a of o.artifacts) if (a.kind === 'file' && !existsSync(a.value)) problems.push(`${id}: expected file missing: ${a.value}`);
+      for (const a of o.artifacts)
+        if (a.kind === 'file' && !existsSync(a.value))
+          problems.push(`${id}: expected file missing: ${a.value}`);
     return { ok: problems.length === 0, problems };
   }
 
   async handle(input: RequestInput): Promise<RequestResult> {
     const { bus, memory } = this.deps;
     const ent = this.checkEntitlement();
-    if (!ent.premium) throw new JarvisError('LICENSE_REQUIRED', ent.reason ?? 'An active JARVIS subscription is required for task execution.');
+    if (!ent.premium)
+      throw new JarvisError(
+        'LICENSE_REQUIRED',
+        ent.reason ?? 'An active JARVIS subscription is required for task execution.',
+      );
 
     const requestId = input.requestId ?? newId('req');
     const controller = new AbortController();
@@ -164,9 +197,32 @@ Respond with JSON only: {"mode":"direct"|"delegate","language":"en"|"ur"|"zh"|<i
     const signal = controller.signal;
     const startedAt = new Date().toISOString();
     const language = input.language ?? detectLanguage(input.text).code;
-    memory.recordTask({ id: requestId, request: input.text, language, status: 'running', summary: '', agents: [], startedAt, finishedAt: startedAt });
-    bus.publish({ type: 'TASK_REQUEST', from: 'user', to: 'orchestrator', taskId: requestId, payload: { taskId: requestId, goal: input.text, requestedBy: 'user' } });
-    if (input.sessionId) memory.remember({ scope: 'session', scopeId: input.sessionId, kind: 'utterance', content: input.text, source: 'user', ttlDays: 7 });
+    memory.recordTask({
+      id: requestId,
+      request: input.text,
+      language,
+      status: 'running',
+      summary: '',
+      agents: [],
+      startedAt,
+      finishedAt: startedAt,
+    });
+    bus.publish({
+      type: 'TASK_REQUEST',
+      from: 'user',
+      to: 'orchestrator',
+      taskId: requestId,
+      payload: { taskId: requestId, goal: input.text, requestedBy: 'user' },
+    });
+    if (input.sessionId)
+      memory.remember({
+        scope: 'session',
+        scopeId: input.sessionId,
+        kind: 'utterance',
+        content: input.text,
+        source: 'user',
+        ttlDays: 7,
+      });
 
     const outputs: Record<string, TaskOutput> = {};
     const agentsUsed = new Set<string>(['orchestrator']);
@@ -175,7 +231,11 @@ Respond with JSON only: {"mode":"direct"|"delegate","language":"en"|"ur"|"zh"|<i
       plan = await this.plan(input.text, language, signal);
       const lang = plan.language || language;
       if (plan.mode === 'direct') {
-        const out = await this.worker.run('orchestrator', { taskId: requestId, goal: input.text, requestedBy: 'user' }, { signal, language: lang });
+        const out = await this.worker.run(
+          'orchestrator',
+          { taskId: requestId, goal: input.text, requestedBy: 'user' },
+          { signal, language: lang },
+        );
         outputs.direct = out;
       } else {
         const nodes: TaskNode<TaskOutput>[] = plan.tasks.map((t) => ({
@@ -186,16 +246,37 @@ Respond with JSON only: {"mode":"direct"|"delegate","language":"en"|"ur"|"zh"|<i
           retries: 1,
           run: async (ctx) => {
             agentsUsed.add(t.agent);
-            const spec: TaskSpec = { taskId: `${requestId}:${t.id}`, parentTaskId: requestId, goal: t.goal, requestedBy: 'orchestrator' };
-            bus.publish({ type: 'TASK_REQUEST', from: 'orchestrator', to: t.agent, taskId: spec.taskId, correlationId: requestId, payload: spec });
-            const upstream = Object.fromEntries(Object.entries(ctx.inputs).map(([k, v]) => [k, v as TaskOutput]));
+            const spec: TaskSpec = {
+              taskId: `${requestId}:${t.id}`,
+              parentTaskId: requestId,
+              goal: t.goal,
+              requestedBy: 'orchestrator',
+            };
+            bus.publish({
+              type: 'TASK_REQUEST',
+              from: 'orchestrator',
+              to: t.agent,
+              taskId: spec.taskId,
+              correlationId: requestId,
+              payload: spec,
+            });
+            const upstream = Object.fromEntries(
+              Object.entries(ctx.inputs).map(([k, v]) => [k, v as TaskOutput]),
+            );
             let out = await this.worker.run(t.agent, spec, { signal, language: lang, context: upstream });
-            const reviewerId = t.review ? (this.deps.registry.get(t.agent)?.def.reviewer ?? 'qa-reviewer') : undefined;
+            const reviewerId = t.review
+              ? (this.deps.registry.get(t.agent)?.def.reviewer ?? 'qa-reviewer')
+              : undefined;
             if (reviewerId) {
               agentsUsed.add(reviewerId);
               const verdict = await this.review(requestId, reviewerId, spec, out, signal);
               if (!verdict.approved) {
-                out = await this.worker.run(t.agent, spec, { signal, language: lang, context: upstream, corrections: verdict.issues });
+                out = await this.worker.run(t.agent, spec, {
+                  signal,
+                  language: lang,
+                  context: upstream,
+                  corrections: verdict.issues,
+                });
                 this.deps.registry.recordCorrection(t.agent);
               }
             }
@@ -203,12 +284,17 @@ Respond with JSON only: {"mode":"direct"|"delegate","language":"en"|"ur"|"zh"|<i
             return out;
           },
         }));
-        const graph = new TaskGraph(nodes, { concurrency: 4, id: requestId, onEvent: (e) => this.hooks.onGraphEvent?.(requestId, e) });
+        const graph = new TaskGraph(nodes, {
+          concurrency: 4,
+          id: requestId,
+          onEvent: (e) => this.hooks.onGraphEvent?.(requestId, e),
+        });
         signal.addEventListener('abort', () => graph.cancel());
         const result = await graph.run();
         if (result.status === 'cancelled') throw new JarvisError('CANCELLED', 'Request cancelled');
         for (const n of Object.values(result.nodes))
-          if (n.status === 'failed') outputs[n.id] = { summary: `FAILED: ${n.error}`, artifacts: [], evidence: [] };
+          if (n.status === 'failed')
+            outputs[n.id] = { summary: `FAILED: ${n.error}`, artifacts: [], evidence: [] };
       }
 
       agentsUsed.add('final-verification');
@@ -216,22 +302,72 @@ Respond with JSON only: {"mode":"direct"|"delegate","language":"en"|"ur"|"zh"|<i
       const reply = await this.synthesize(requestId, input.text, lang, outputs, verification, signal);
       const anyFailed = Object.values(outputs).some((o) => o.summary.startsWith('FAILED:'));
       const status = anyFailed && Object.keys(outputs).length === 1 ? 'failed' : 'succeeded';
-      bus.publish({ type: 'COMPLETED', from: 'orchestrator', taskId: requestId, payload: { summary: reply, artifacts: Object.values(outputs).flatMap((o) => o.artifacts), evidence: Object.values(outputs).flatMap((o) => o.evidence) } });
-      memory.recordTask({ id: requestId, request: input.text, language: lang, status, summary: reply.slice(0, 2000), agents: [...agentsUsed], startedAt, finishedAt: new Date().toISOString() });
-      if (status === 'succeeded' && verification.ok && plan.mode === 'delegate') void this.learn(input.text, plan, outputs).catch(() => {});
-      return { requestId, status, language: lang, reply, plan, outputs, verification, agents: [...agentsUsed] };
+      bus.publish({
+        type: 'COMPLETED',
+        from: 'orchestrator',
+        taskId: requestId,
+        payload: {
+          summary: reply,
+          artifacts: Object.values(outputs).flatMap((o) => o.artifacts),
+          evidence: Object.values(outputs).flatMap((o) => o.evidence),
+        },
+      });
+      memory.recordTask({
+        id: requestId,
+        request: input.text,
+        language: lang,
+        status,
+        summary: reply.slice(0, 2000),
+        agents: [...agentsUsed],
+        startedAt,
+        finishedAt: new Date().toISOString(),
+      });
+      if (status === 'succeeded' && verification.ok && plan.mode === 'delegate')
+        void this.learn(input.text, plan, outputs).catch(() => {});
+      return {
+        requestId,
+        status,
+        language: lang,
+        reply,
+        plan,
+        outputs,
+        verification,
+        agents: [...agentsUsed],
+      };
     } catch (e) {
       const je = toJarvisError(e);
       const status = je.code === 'CANCELLED' ? 'cancelled' : 'failed';
-      memory.recordTask({ id: requestId, request: input.text, language, status, summary: je.message, agents: [...agentsUsed], startedAt, finishedAt: new Date().toISOString() });
-      if (status === 'failed') bus.publish({ type: 'TASK_FAILED', from: 'orchestrator', taskId: requestId, payload: { error: je.message, code: je.code, retryable: false } });
+      memory.recordTask({
+        id: requestId,
+        request: input.text,
+        language,
+        status,
+        summary: je.message,
+        agents: [...agentsUsed],
+        startedAt,
+        finishedAt: new Date().toISOString(),
+      });
+      if (status === 'failed')
+        bus.publish({
+          type: 'TASK_FAILED',
+          from: 'orchestrator',
+          taskId: requestId,
+          payload: { error: je.message, code: je.code, retryable: false },
+        });
       throw je;
     } finally {
       this.active.delete(requestId);
     }
   }
 
-  private async synthesize(requestId: string, request: string, language: string, outputs: Record<string, TaskOutput>, verification: { ok: boolean; problems: string[] }, signal: AbortSignal): Promise<string> {
+  private async synthesize(
+    requestId: string,
+    request: string,
+    language: string,
+    outputs: Record<string, TaskOutput>,
+    verification: { ok: boolean; problems: string[] },
+    signal: AbortSignal,
+  ): Promise<string> {
     const only = Object.keys(outputs);
     if (only.length === 1 && only[0] === 'direct' && verification.ok) return outputs.direct!.summary;
     const res = await this.deps.router.chat(
@@ -247,7 +383,15 @@ Respond with JSON only: {"mode":"direct"|"delegate","language":"en"|"ur"|"zh"|<i
           {
             role: 'user',
             content: `Request: ${request}\n\nResults:\n${Object.entries(outputs)
-              .map(([k, o]) => `[${k}] ${o.summary}\nFiles: ${o.artifacts.map((a) => a.value).join(', ') || 'none'}\nSources: ${o.evidence.map((e) => e.source).slice(0, 10).join(', ') || 'none'}`)
+              .map(
+                ([k, o]) =>
+                  `[${k}] ${o.summary}\nFiles: ${o.artifacts.map((a) => a.value).join(', ') || 'none'}\nSources: ${
+                    o.evidence
+                      .map((e) => e.source)
+                      .slice(0, 10)
+                      .join(', ') || 'none'
+                  }`,
+              )
               .join('\n\n')}\n\nVerification problems: ${verification.problems.join('; ') || 'none'}`,
           },
         ],
@@ -263,35 +407,62 @@ Respond with JSON only: {"mode":"direct"|"delegate","language":"en"|"ur"|"zh"|<i
       temperature: 0,
       responseFormat: 'json_object',
       messages: [
-        { role: 'system', content: 'Extract at most one reusable, general lesson from this successful task (a workflow insight, not user data). Respond JSON {"lesson": string|null}.' },
-        { role: 'user', content: `Request: ${request}\nPlan: ${JSON.stringify(plan.tasks.map((t) => ({ agent: t.agent, goal: t.goal })))}\nOutcome: ${Object.values(outputs).map((o) => o.summary.slice(0, 300)).join(' | ')}` },
+        {
+          role: 'system',
+          content:
+            'Extract at most one reusable, general lesson from this successful task (a workflow insight, not user data). Respond JSON {"lesson": string|null}.',
+        },
+        {
+          role: 'user',
+          content: `Request: ${request}\nPlan: ${JSON.stringify(plan.tasks.map((t) => ({ agent: t.agent, goal: t.goal })))}\nOutcome: ${Object.values(
+            outputs,
+          )
+            .map((o) => o.summary.slice(0, 300))
+            .join(' | ')}`,
+        },
       ],
     });
     const parsed = z.object({ lesson: z.string().min(10).nullable() }).safeParse(parseJson(res.content));
     if (parsed.success && parsed.data.lesson) {
-      const l = this.deps.memory.proposeLesson(parsed.data.lesson, 'learning-agent', plan.tasks.map((t) => t.agent));
+      const l = this.deps.memory.proposeLesson(
+        parsed.data.lesson,
+        'learning-agent',
+        plan.tasks.map((t) => t.agent),
+      );
       // Verified automatically only because the task passed final verification; the user can still reject it.
-      this.deps.memory.verifyLesson(l.id, `Task succeeded and passed final verification: ${request.slice(0, 200)}`);
+      this.deps.memory.verifyLesson(
+        l.id,
+        `Task succeeded and passed final verification: ${request.slice(0, 200)}`,
+      );
     }
   }
 
   /** Agent Builder: create a validated dynamic specialist from a natural-language brief. */
   async createAgent(brief: string): Promise<AgentDefinitionInput> {
-    const tools = this.deps.tools.list().map((t) => `${t.id} (${t.categories.join('/')})`).join(', ');
+    const tools = this.deps.tools
+      .list()
+      .map((t) => `${t.id} (${t.categories.join('/')})`)
+      .join(', ');
     const res = await this.deps.router.chat('reasoning', {
       temperature: 0,
       responseFormat: 'json_object',
       messages: [
         {
           role: 'system',
-          content: `Design a JARVIS specialist agent. Respond JSON with fields: id (kebab-case), name, department (one of executive, engineering, research, design, marketing, business, security, knowledge-ai, qa-operations), description, capabilities (string[]), tools (subset of: ${tools}), skills (string[] from: ${this.deps.skills.list().map((s) => s.id).join(', ')}), permissions (subset of READ, WRITE, EXECUTE, NETWORK, BROWSER, SYSTEM, SENSITIVE, DESTRUCTIVE matching the tools), modelRole (fast|reasoning|coding|vision), instructions.`,
+          content: `Design a JARVIS specialist agent. Respond JSON with fields: id (kebab-case), name, department (one of executive, engineering, research, design, marketing, business, security, knowledge-ai, qa-operations), description, capabilities (string[]), tools (subset of: ${tools}), skills (string[] from: ${this.deps.skills
+            .list()
+            .map((s) => s.id)
+            .join(
+              ', ',
+            )}), permissions (subset of READ, WRITE, EXECUTE, NETWORK, BROWSER, SYSTEM, SENSITIVE, DESTRUCTIVE matching the tools), modelRole (fast|reasoning|coding|vision), instructions.`,
         },
         { role: 'user', content: brief },
       ],
     });
     const def = AgentDefinitionSchema.parse({ ...(parseJson(res.content) as object), dynamic: true });
     const unknownTools = def.tools.filter((t) => !this.deps.tools.get(t) && !t.startsWith('memory.'));
-    if (unknownTools.length) throw new JarvisError('INVALID_INPUT', `Agent references unknown tools: ${unknownTools.join(', ')}`);
+    if (unknownTools.length)
+      throw new JarvisError('INVALID_INPUT', `Agent references unknown tools: ${unknownTools.join(', ')}`);
     def.skills = def.skills.filter((s) => this.deps.skills.get(s));
     this.deps.registry.register(def);
     return def;

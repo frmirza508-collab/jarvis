@@ -17,17 +17,50 @@ export function ActivityPanel() {
       <Glass title="Command history" className="side-left" tilt="left">
         <ul className="history">
           {history.map((h) => (
-            <li key={h.id}><StateBadge state={h.status} /> <b dir="auto">{h.request}</b><br /><small>{new Date(h.startedAt).toLocaleString()} · {h.agents.length} agents</small><p dir="auto">{h.summary.slice(0, 240)}</p></li>
+            <li key={h.id}>
+              <StateBadge state={h.status} /> <b dir="auto">{h.request}</b>
+              <br />
+              <small>
+                {new Date(h.startedAt).toLocaleString()} · {h.agents.length} agents
+              </small>
+              <p dir="auto">{h.summary.slice(0, 240)}</p>
+            </li>
           ))}
         </ul>
       </Glass>
-      <Glass title="Audit log" className="side-right" tilt="right" actions={audit && <StateBadge state={audit.chainIntact ? 'chain_intact' : 'chain_broken'} />}>
+      <Glass
+        title="Audit log"
+        className="side-right"
+        tilt="right"
+        actions={audit && <StateBadge state={audit.chainIntact ? 'chain_intact' : 'chain_broken'} />}
+      >
         <table className="dense">
-          <thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Target</th><th>Outcome</th></tr></thead>
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Actor</th>
+              <th>Action</th>
+              <th>Target</th>
+              <th>Outcome</th>
+            </tr>
+          </thead>
           <tbody>
-            {audit?.entries.slice().reverse().map((e) => (
-              <tr key={e.id}><td>{new Date(e.ts).toLocaleTimeString()}</td><td>{e.actor}</td><td>{e.action}</td><td className="ellipsis" title={e.target}>{e.target ?? ''}</td><td><StateBadge state={e.outcome} /></td></tr>
-            ))}
+            {audit?.entries
+              .slice()
+              .reverse()
+              .map((e) => (
+                <tr key={e.id}>
+                  <td>{new Date(e.ts).toLocaleTimeString()}</td>
+                  <td>{e.actor}</td>
+                  <td>{e.action}</td>
+                  <td className="ellipsis" title={e.target}>
+                    {e.target ?? ''}
+                  </td>
+                  <td>
+                    <StateBadge state={e.outcome} />
+                  </td>
+                </tr>
+              ))}
           </tbody>
         </table>
       </Glass>

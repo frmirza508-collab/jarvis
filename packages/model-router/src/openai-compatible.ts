@@ -135,7 +135,8 @@ export class OpenAICompatibleProvider implements ModelProvider {
         } catch {
           continue;
         }
-        if (j.error) throw new ProviderHttpError(502, `${this.id}: ${j.error.message ?? 'stream error'}`, true);
+        if (j.error)
+          throw new ProviderHttpError(502, `${this.id}: ${j.error.message ?? 'stream error'}`, true);
         id = j.id ?? id;
         model = j.model ?? model;
         const ch = j.choices?.[0];
@@ -145,7 +146,11 @@ export class OpenAICompatibleProvider implements ModelProvider {
           onDelta(d);
         }
         for (const tc of ch?.delta?.tool_calls ?? []) {
-          const cur = tools.get(tc.index) ?? { id: '', type: 'function' as const, function: { name: '', arguments: '' } };
+          const cur = tools.get(tc.index) ?? {
+            id: '',
+            type: 'function' as const,
+            function: { name: '', arguments: '' },
+          };
           if (tc.id) cur.id = tc.id;
           if (tc.function?.name) cur.function.name += tc.function.name;
           if (tc.function?.arguments) cur.function.arguments += tc.function.arguments;
@@ -164,8 +169,16 @@ export class OpenAICompatibleProvider implements ModelProvider {
   }
 
   async listModels(): Promise<ModelInfo[]> {
-    const res = await this.f(`${this.opts.baseUrl}/models`, { headers: this.headers(), signal: AbortSignal.timeout(20_000) });
-    if (!res.ok) throw new ProviderHttpError(res.status, `${this.id}: list models failed ${res.status}`, res.status >= 500);
+    const res = await this.f(`${this.opts.baseUrl}/models`, {
+      headers: this.headers(),
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (!res.ok)
+      throw new ProviderHttpError(
+        res.status,
+        `${this.id}: list models failed ${res.status}`,
+        res.status >= 500,
+      );
     const j = (await res.json()) as { data?: Array<Record<string, unknown>> };
     return (j.data ?? []).map((m) => ({
       id: String(m.id),

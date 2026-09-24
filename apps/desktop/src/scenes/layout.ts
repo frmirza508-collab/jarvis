@@ -1,7 +1,17 @@
 import * as THREE from 'three';
 import type { ViewId } from '../lib/store';
 
-export const DEPARTMENTS = ['executive', 'engineering', 'research', 'design', 'marketing', 'business', 'security', 'knowledge-ai', 'qa-operations'] as const;
+export const DEPARTMENTS = [
+  'executive',
+  'engineering',
+  'research',
+  'design',
+  'marketing',
+  'business',
+  'security',
+  'knowledge-ai',
+  'qa-operations',
+] as const;
 
 export const DEPT_COLORS: Record<string, string> = {
   executive: '#7fe3ff',
@@ -26,10 +36,24 @@ export function agentPosition(dept: string, index: number, count: number): THREE
   const hub = departmentPosition(dept);
   const a = (index / Math.max(1, count)) * Math.PI * 2;
   const r = 1.4 + (count > 12 ? (index % 2) * 0.6 : 0);
-  return hub.clone().add(new THREE.Vector3(Math.cos(a) * r, Math.sin(a * 3) * 0.35 + ((index % 3) - 1) * 0.25, Math.sin(a) * r));
+  return hub
+    .clone()
+    .add(
+      new THREE.Vector3(Math.cos(a) * r, Math.sin(a * 3) * 0.35 + ((index % 3) - 1) * 0.25, Math.sin(a) * r),
+    );
 }
 
-export const MODULES = ['file-system', 'terminal', 'browser-control', 'documents', 'web-research', 'computer-control', 'memory', 'voice', 'models'] as const;
+export const MODULES = [
+  'file-system',
+  'terminal',
+  'browser-control',
+  'documents',
+  'web-research',
+  'computer-control',
+  'memory',
+  'voice',
+  'models',
+] as const;
 export function modulePosition(i: number, n: number): THREE.Vector3 {
   const a = (i / n) * Math.PI * 2 + Math.PI / n;
   return new THREE.Vector3(Math.cos(a) * 5.5, -4.2, Math.sin(a) * 5.5);

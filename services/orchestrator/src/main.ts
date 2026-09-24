@@ -7,7 +7,13 @@ import { Logger } from '@jarvis/shared';
 import { createJarvisCore, type CoreSettings } from './core.js';
 import { createServer } from './server.js';
 import { LicenseClient } from './license-client.js';
-import { APP_VERSION, DEVELOPMENT_LICENSE_MODE, IS_RELEASE, LICENSE_API_URL, LICENSE_PUBLIC_KEY } from './build-info.js';
+import {
+  APP_VERSION,
+  DEVELOPMENT_LICENSE_MODE,
+  IS_RELEASE,
+  LICENSE_API_URL,
+  LICENSE_PUBLIC_KEY,
+} from './build-info.js';
 
 /**
  * JARVIS local core entry point (runs as the Tauri sidecar).
@@ -28,7 +34,10 @@ interface Bootstrap {
 const log = new Logger('core');
 
 function dataDirDefault(): string {
-  const base = process.platform === 'win32' ? (process.env.APPDATA ?? path.join(os.homedir(), 'AppData', 'Roaming')) : path.join(os.homedir(), '.local', 'share');
+  const base =
+    process.platform === 'win32'
+      ? (process.env.APPDATA ?? path.join(os.homedir(), 'AppData', 'Roaming'))
+      : path.join(os.homedir(), '.local', 'share');
   return path.join(base, 'JARVIS');
 }
 
@@ -38,7 +47,7 @@ function readLineSync(timeoutMs: number): string {
   const chunks: Buffer[] = [];
   const buf = Buffer.alloc(4096);
   while (Date.now() - started < timeoutMs) {
-    let n = 0;
+    let n: number;
     try {
       n = readSync(0, buf, 0, buf.length, null);
     } catch (e) {
@@ -81,26 +90,42 @@ async function main(): Promise<void> {
   const boot = await readBootstrap();
   const dataDir = boot.dataDir ?? process.env.JARVIS_DATA_DIR ?? dataDirDefault();
   mkdirSync(dataDir, { recursive: true });
-  const secrets = new EncryptedFileSecretStore(path.join(dataDir, 'secrets.enc.json'), new StaticKeyProvider(boot.masterKey));
+  const secrets = new EncryptedFileSecretStore(
+    path.join(dataDir, 'secrets.enc.json'),
+    new StaticKeyProvider(boot.masterKey),
+  );
   // Allow first-run seeding from environment for headless/dev use (never logged).
-  for (const n of ['OPENROUTER_API_KEY', 'BRAVE_SEARCH_API_KEY', 'TAVILY_API_KEY'] as const) if (process.env[n] && !secrets.has(n)) secrets.set(n, process.env[n]!);
+  for (const n of ['OPENROUTER_API_KEY', 'BRAVE_SEARCH_API_KEY', 'TAVILY_API_KEY'] as const)
+    if (process.env[n] && !secrets.has(n)) secrets.set(n, process.env[n]!);
 
   let saved: Partial<CoreSettings> = {};
   const settingsFile = path.join(dataDir, 'settings.json');
-  if (existsSync(settingsFile)) saved = JSON.parse(readFileSync(settingsFile, 'utf8')) as Partial<CoreSettings>;
+  if (existsSync(settingsFile))
+    saved = JSON.parse(readFileSync(settingsFile, 'utf8')) as Partial<CoreSettings>;
   const workspace = saved.workspace ?? path.join(os.homedir(), 'Documents', 'JARVIS');
   mkdirSync(workspace, { recursive: true });
 
   let license: LicenseClient | undefined;
   if (LICENSE_PUBLIC_KEY) {
-    license = new LicenseClient({ apiUrl: LICENSE_API_URL, publicKeyPem: LICENSE_PUBLIC_KEY, secrets, appVersion: APP_VERSION, developmentMode: DEVELOPMENT_LICENSE_MODE });
+    license = new LicenseClient({
+      apiUrl: LICENSE_API_URL,
+      publicKeyPem: LICENSE_PUBLIC_KEY,
+      secrets,
+      appVersion: APP_VERSION,
+      developmentMode: DEVELOPMENT_LICENSE_MODE,
+    });
     await license.init();
     license.start();
-    if (secrets.get('LICENSE_KEY')) void license.refresh().catch((e) => log.warn('license refresh failed', { error: (e as Error).message }));
+    if (secrets.get('LICENSE_KEY'))
+      void license
+        .refresh()
+        .catch((e) => log.warn('license refresh failed', { error: (e as Error).message }));
   } else if (IS_RELEASE) {
     throw new Error('Release build is missing the license public key');
   } else if (!DEVELOPMENT_LICENSE_MODE) {
-    log.warn('No JARVIS_LICENSE_PUBLIC_KEY configured: premium execution is blocked. Set JARVIS_LICENSE_MODE=development for local development.');
+    log.warn(
+      'No JARVIS_LICENSE_PUBLIC_KEY configured: premium execution is blocked. Set JARVIS_LICENSE_MODE=development for local development.',
+    );
   }
 
   const core = createJarvisCore({
@@ -108,10 +133,22 @@ async function main(): Promise<void> {
     secrets,
     settings: { ...saved, workspace },
     hooks: {
-      checkEntitlement: () => (license ? license.checkEntitlement() : DEVELOPMENT_LICENSE_MODE ? { premium: true } : { premium: false, reason: 'Licensing is not configured in this build.' }),
+      checkEntitlement: () =>
+        license
+          ? license.checkEntitlement()
+          : DEVELOPMENT_LICENSE_MODE
+            ? { premium: true }
+            : { premium: false, reason: 'Licensing is not configured in this build.' },
     },
   });
-  const server = await createServer({ core, license, token: boot.token, dataDir, version: APP_VERSION });
+  const server = await createServer({
+    core,
+    license,
+    token: boot.token,
+    dataDir,
+    version: APP_VERSION,
+    updateServerUrl: LICENSE_PUBLIC_KEY ? LICENSE_API_URL : undefined,
+  });
 
   const address = await server.listen({ host: '127.0.0.1', port: boot.port ?? 0 });
   const port = Number(new URL(address).port);
@@ -148,7 +185,9 @@ async function main(): Promise<void> {
       }
     }, 5000).unref();
   }
-  process.on('uncaughtException', (e) => log.error('uncaught exception', { error: e.message, stack: e.stack }));
+  process.on('uncaughtException', (e) =>
+    log.error('uncaught exception', { error: e.message, stack: e.stack }),
+  );
   process.on('unhandledRejection', (e) => log.error('unhandled rejection', { error: String(e) }));
 }
 

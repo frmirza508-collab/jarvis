@@ -6,14 +6,25 @@ export default defineConfig({
       {
         test: {
           name: 'unit',
-          include: ['packages/*/test/**/*.test.ts', 'agents/test/**/*.test.ts', 'skills/test/**/*.test.ts', 'services/*/test/unit/**/*.test.ts', 'tests/unit/**/*.test.ts', 'tests/security/**/*.test.ts'],
+          include: [
+            'packages/*/test/**/*.test.ts',
+            'agents/test/**/*.test.ts',
+            'skills/test/**/*.test.ts',
+            'services/*/test/unit/**/*.test.ts',
+            'tests/unit/**/*.test.ts',
+            'tests/security/**/*.test.ts',
+          ],
           environment: 'node',
         },
       },
       {
         test: {
           name: 'integration',
-          include: ['services/*/test/integration/**/*.test.ts', 'tests/integration/**/*.test.ts', 'tests/licensing/**/*.test.ts'],
+          include: [
+            'services/*/test/integration/**/*.test.ts',
+            'tests/integration/**/*.test.ts',
+            'tests/licensing/**/*.test.ts',
+          ],
           environment: 'node',
           testTimeout: 60_000,
           hookTimeout: 60_000,

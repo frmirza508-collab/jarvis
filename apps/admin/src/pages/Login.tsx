@@ -14,7 +14,10 @@ export function Login({ onLogin }: { onLogin: () => void }) {
           setBusy(true);
           setError(null);
           try {
-            const r = await api<{ token: string; user: { role: string } }>('POST', '/v1/auth/login', { email, password });
+            const r = await api<{ token: string; user: { role: string } }>('POST', '/v1/auth/login', {
+              email,
+              password,
+            });
             if (r.user.role === 'customer') throw new Error('This account is not an administrator');
             setToken(r.token);
             onLogin();
@@ -28,14 +31,32 @@ export function Login({ onLogin }: { onLogin: () => void }) {
         <h1>JARVIS Admin</h1>
         <label>
           Email
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="username" />
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            autoComplete="username"
+          />
         </label>
         <label>
           Password
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            autoComplete="current-password"
+          />
         </label>
-        {error && <div className="error" role="alert">{error}</div>}
-        <button type="submit" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
+        {error && (
+          <div className="error" role="alert">
+            {error}
+          </div>
+        )}
+        <button type="submit" disabled={busy}>
+          {busy ? 'Signing in…' : 'Sign in'}
+        </button>
       </form>
     </main>
   );

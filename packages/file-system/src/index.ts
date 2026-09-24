@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import fs from 'node:fs/promises';
-import { createReadStream } from 'node:fs';
+import { createReadStream, type Dirent } from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { JarvisError } from '@jarvis/shared';
@@ -10,7 +10,8 @@ import { isProtectedPath, isSensitivePath } from '@jarvis/security';
 const MAX_READ_BYTES = 2 * 1024 * 1024;
 
 function guardWrite(p: string): void {
-  if (isProtectedPath(p)) throw new JarvisError('PERMISSION_DENIED', `Refusing to modify protected system path: ${p}`);
+  if (isProtectedPath(p))
+    throw new JarvisError('PERMISSION_DENIED', `Refusing to modify protected system path: ${p}`);
 }
 
 function resolveUserPath(p: string, workspace?: string): string {
@@ -37,17 +38,28 @@ async function entry(p: string): Promise<FileEntry> {
   };
 }
 
-const IGNORED_DIRS = new Set(['node_modules', '.git', 'target', 'dist', '$RECYCLE.BIN', 'System Volume Information', 'AppData']);
+const IGNORED_DIRS = new Set([
+  'node_modules',
+  '.git',
+  'target',
+  'dist',
+  '$RECYCLE.BIN',
+  'System Volume Information',
+  'AppData',
+]);
 
 /** Walks a directory tree breadth-first, bounded by maxEntries. */
-export async function walk(root: string, opts: { maxEntries?: number; maxDepth?: number } = {}): Promise<FileEntry[]> {
+export async function walk(
+  root: string,
+  opts: { maxEntries?: number; maxDepth?: number } = {},
+): Promise<FileEntry[]> {
   const out: FileEntry[] = [];
   const max = opts.maxEntries ?? 5000;
   const maxDepth = opts.maxDepth ?? 8;
   const queue: Array<[string, number]> = [[root, 0]];
   while (queue.length && out.length < max) {
     const [dir, depth] = queue.shift()!;
-    let items: import('node:fs').Dirent[];
+    let items: Dirent[];
     try {
       items = await fs.readdir(dir, { withFileTypes: true });
     } catch {
@@ -97,10 +109,22 @@ export class FileIndex {
     const scored: Array<[number, FileEntry]> = [];
     for (const e of this.entries.values()) {
       const name = e.name.toLowerCase();
-      const score = name === q ? 3 : name.startsWith(q) ? 2 : name.includes(q) ? 1 : e.path.toLowerCase().includes(q) ? 0.5 : 0;
+      const score =
+        name === q
+          ? 3
+          : name.startsWith(q)
+            ? 2
+            : name.includes(q)
+              ? 1
+              : e.path.toLowerCase().includes(q)
+                ? 0.5
+                : 0;
       if (score > 0) scored.push([score, e]);
     }
-    return scored.sort((a, b) => b[0] - a[0]).slice(0, limit).map(([, e]) => e);
+    return scored
+      .sort((a, b) => b[0] - a[0])
+      .slice(0, limit)
+      .map(([, e]) => e);
   }
 
   size(): number {
@@ -126,7 +150,9 @@ export function fileSystemTools(index: FileIndex): ToolDefinition[] {
       input: P.extend({ maxBytes: z.number().int().positive().max(MAX_READ_BYTES).optional() }),
       assess: (i, ctx) => {
         const p = resolveUserPath(i.path, ctx.workspace);
-        return isSensitivePath(p) ? { risk: 'high', target: p, description: `Read sensitive file ${p}` } : { risk: 'low', target: p };
+        return isSensitivePath(p)
+          ? { risk: 'high', target: p, description: `Read sensitive file ${p}` }
+          : { risk: 'low', target: p };
       },
       execute: async (i, ctx) => {
         const p = resolveUserPath(i.path, ctx.workspace);
@@ -188,10 +214,15 @@ export function fileSystemTools(index: FileIndex): ToolDefinition[] {
     defineTool({
       id: 'fs.search',
       title: 'Search files',
-      description: 'Search indexed workspaces by file name; optionally add a new workspace root to the index first.',
+      description:
+        'Search indexed workspaces by file name; optionally add a new workspace root to the index first.',
       module: 'file-system',
       categories: ['READ'],
-      input: z.object({ query: z.string().min(1), addRoot: z.string().optional(), limit: z.number().int().max(500).optional() }),
+      input: z.object({
+        query: z.string().min(1),
+        addRoot: z.string().optional(),
+        limit: z.number().int().max(500).optional(),
+      }),
       execute: async (i, ctx) => {
         if (i.addRoot) await index.addRoot(resolveUserPath(i.addRoot, ctx.workspace));
         return { indexed: index.size(), roots: index.listRoots(), results: index.search(i.query, i.limit) };
@@ -206,7 +237,13 @@ export function fileSystemTools(index: FileIndex): ToolDefinition[] {
       input: P.extend({ content: z.string(), overwrite: z.boolean().default(false) }),
       assess: (i, ctx) => {
         const p = resolveUserPath(i.path, ctx.workspace);
-        return { risk: i.overwrite ? 'high' : 'medium', target: p, description: `${i.overwrite ? 'Overwrite' : 'Create'} file ${p}`, blocked: isProtectedPath(p), reasons: ['protected system path'] };
+        return {
+          risk: i.overwrite ? 'high' : 'medium',
+          target: p,
+          description: `${i.overwrite ? 'Overwrite' : 'Create'} file ${p}`,
+          blocked: isProtectedPath(p),
+          reasons: ['protected system path'],
+        };
       },
       execute: async (i, ctx) => {
         const p = resolveUserPath(i.path, ctx.workspace);
@@ -225,7 +262,13 @@ export function fileSystemTools(index: FileIndex): ToolDefinition[] {
       input: P.extend({ find: z.string().min(1), replace: z.string() }),
       assess: (i, ctx) => {
         const p = resolveUserPath(i.path, ctx.workspace);
-        return { risk: 'medium', target: p, description: `Edit file ${p}`, blocked: isProtectedPath(p), reasons: ['protected system path'] };
+        return {
+          risk: 'medium',
+          target: p,
+          description: `Edit file ${p}`,
+          blocked: isProtectedPath(p),
+          reasons: ['protected system path'],
+        };
       },
       execute: async (i, ctx) => {
         const p = resolveUserPath(i.path, ctx.workspace);
@@ -233,7 +276,8 @@ export function fileSystemTools(index: FileIndex): ToolDefinition[] {
         const text = await fs.readFile(p, 'utf8');
         const first = text.indexOf(i.find);
         if (first < 0) throw new JarvisError('INVALID_INPUT', 'Text to replace was not found');
-        if (text.indexOf(i.find, first + 1) >= 0) throw new JarvisError('INVALID_INPUT', 'Text to replace is not unique');
+        if (text.indexOf(i.find, first + 1) >= 0)
+          throw new JarvisError('INVALID_INPUT', 'Text to replace is not unique');
         await fs.writeFile(p, text.slice(0, first) + i.replace + text.slice(first + i.find.length));
         return { path: p, replaced: 1 };
       },
@@ -265,7 +309,13 @@ export function fileSystemTools(index: FileIndex): ToolDefinition[] {
       input: z.object({ from: z.string(), to: z.string(), overwrite: z.boolean().default(false) }),
       assess: (i, ctx) => {
         const to = resolveUserPath(i.to, ctx.workspace);
-        return { risk: i.overwrite ? 'high' : 'medium', target: to, description: `Copy ${i.from} -> ${to}`, blocked: isProtectedPath(to), reasons: ['protected system path'] };
+        return {
+          risk: i.overwrite ? 'high' : 'medium',
+          target: to,
+          description: `Copy ${i.from} -> ${to}`,
+          blocked: isProtectedPath(to),
+          reasons: ['protected system path'],
+        };
       },
       execute: async (i, ctx) => {
         const from = resolveUserPath(i.from, ctx.workspace);
@@ -285,7 +335,13 @@ export function fileSystemTools(index: FileIndex): ToolDefinition[] {
       assess: (i, ctx) => {
         const from = resolveUserPath(i.from, ctx.workspace);
         const to = resolveUserPath(i.to, ctx.workspace);
-        return { risk: 'medium', target: from, description: `Move ${from} -> ${to}`, blocked: isProtectedPath(from) || isProtectedPath(to), reasons: ['protected system path'] };
+        return {
+          risk: 'medium',
+          target: from,
+          description: `Move ${from} -> ${to}`,
+          blocked: isProtectedPath(from) || isProtectedPath(to),
+          reasons: ['protected system path'],
+        };
       },
       execute: async (i, ctx) => {
         const from = resolveUserPath(i.from, ctx.workspace);
@@ -312,7 +368,13 @@ export function fileSystemTools(index: FileIndex): ToolDefinition[] {
       input: P.extend({ recursive: z.boolean().default(false) }),
       assess: (i, ctx) => {
         const p = resolveUserPath(i.path, ctx.workspace);
-        return { risk: 'critical', target: p, description: `Permanently delete ${p}${i.recursive ? ' and everything inside it' : ''}`, blocked: isProtectedPath(p), reasons: ['protected system path'] };
+        return {
+          risk: 'critical',
+          target: p,
+          description: `Permanently delete ${p}${i.recursive ? ' and everything inside it' : ''}`,
+          blocked: isProtectedPath(p),
+          reasons: ['protected system path'],
+        };
       },
       execute: async (i, ctx) => {
         const p = resolveUserPath(i.path, ctx.workspace);

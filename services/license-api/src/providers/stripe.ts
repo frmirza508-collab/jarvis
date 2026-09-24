@@ -1,5 +1,11 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { WebhookVerificationError, type BillingEvent, type BillingProvider, type CheckoutRequest, type CheckoutSession } from '@jarvis/billing-core';
+import {
+  WebhookVerificationError,
+  type BillingEvent,
+  type BillingProvider,
+  type CheckoutRequest,
+  type CheckoutSession,
+} from '@jarvis/billing-core';
 
 /**
  * Stripe adapter (REST, no SDK). Uses Checkout Sessions. When price IDs are
@@ -12,7 +18,13 @@ import { WebhookVerificationError, type BillingEvent, type BillingProvider, type
 export class StripeProvider implements BillingProvider {
   readonly id = 'stripe';
   constructor(
-    private readonly cfg: { secretKey?: string; webhookSecret?: string; priceMonthly?: string; priceYearly?: string; toleranceSec?: number },
+    private readonly cfg: {
+      secretKey?: string;
+      webhookSecret?: string;
+      priceMonthly?: string;
+      priceYearly?: string;
+      toleranceSec?: number;
+    },
     private readonly f: typeof fetch = fetch,
   ) {}
 
@@ -44,7 +56,10 @@ export class StripeProvider implements BillingProvider {
     }
     const res = await this.f('https://api.stripe.com/v1/checkout/sessions', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${this.cfg.secretKey}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+      headers: {
+        Authorization: `Bearer ${this.cfg.secretKey}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
       body: form,
     });
     const j = (await res.json()) as { id?: string; url?: string; error?: { message?: string } };
@@ -59,7 +74,8 @@ export class StripeProvider implements BillingProvider {
     const t = Number(parts.find(([k]) => k === 't')?.[1]);
     const sigs = parts.filter(([k]) => k === 'v1').map(([, v]) => v);
     if (!t || !sigs.length) throw new WebhookVerificationError('Malformed Stripe-Signature header');
-    if (Math.abs(nowSec - t) > (this.cfg.toleranceSec ?? 300)) throw new WebhookVerificationError('Stripe webhook timestamp outside tolerance (possible replay)');
+    if (Math.abs(nowSec - t) > (this.cfg.toleranceSec ?? 300))
+      throw new WebhookVerificationError('Stripe webhook timestamp outside tolerance (possible replay)');
     const expected = createHmac('sha256', this.cfg.webhookSecret).update(`${t}.`).update(rawBody).digest();
     const ok = sigs.some((s) => {
       const b = Buffer.from(s, 'hex');
@@ -68,24 +84,84 @@ export class StripeProvider implements BillingProvider {
     if (!ok) throw new WebhookVerificationError('Invalid Stripe webhook signature');
   }
 
-  async parseWebhook(rawBody: Buffer, headers: Record<string, string | string[] | undefined>): Promise<BillingEvent[]> {
+  async parseWebhook(
+    rawBody: Buffer,
+    headers: Record<string, string | string[] | undefined>,
+  ): Promise<BillingEvent[]> {
     const h = headers['stripe-signature'];
     this.verifySignature(rawBody, Array.isArray(h) ? h[0] : h);
-    const evt = JSON.parse(rawBody.toString('utf8')) as { id: string; type: string; created: number; data: { object: Record<string, unknown> } };
+    const evt = JSON.parse(rawBody.toString('utf8')) as {
+      id: string;
+      type: string;
+      created: number;
+      data: { object: Record<string, unknown> };
+    };
     const o = evt.data.object;
     const meta = (o.metadata ?? {}) as Record<string, string>;
     const occurredAt = new Date(evt.created * 1000);
-    const amount = typeof o.amount_total === 'number' ? o.amount_total / 100 : typeof o.amount_paid === 'number' ? o.amount_paid / 100 : undefined;
+    const amount =
+      typeof o.amount_total === 'number'
+        ? o.amount_total / 100
+        : typeof o.amount_paid === 'number'
+          ? o.amount_paid / 100
+          : undefined;
     const currency = typeof o.currency === 'string' ? o.currency.toUpperCase() : undefined;
     if (evt.type === 'checkout.session.completed' && o.payment_status === 'paid') {
-      return [{ provider: this.id, providerEventId: evt.id, type: 'payment.succeeded', customerRef: meta.customer_id ?? (o.client_reference_id as string), planCode: meta.plan_code as 'monthly' | 'yearly', amount, currency, occurredAt, subscriptionRef: (o.subscription as string) ?? undefined }];
+      return [
+        {
+          provider: this.id,
+          providerEventId: evt.id,
+          type: 'payment.succeeded',
+          customerRef: meta.customer_id ?? (o.client_reference_id as string),
+          planCode: meta.plan_code as 'monthly' | 'yearly',
+          amount,
+          currency,
+          occurredAt,
+          subscriptionRef: (o.subscription as string) ?? undefined,
+        },
+      ];
     }
     if (evt.type === 'invoice.paid' && o.billing_reason === 'subscription_cycle') {
-      const subMeta = ((o.subscription_details as { metadata?: Record<string, string> } | undefined)?.metadata ?? (o.parent as { subscription_details?: { metadata?: Record<string, string> } } | undefined)?.subscription_details?.metadata ?? {}) as Record<string, string>;
-      return [{ provider: this.id, providerEventId: evt.id, type: 'subscription.renewed', customerRef: subMeta.customer_id, planCode: subMeta.plan_code as 'monthly' | 'yearly', amount, currency, occurredAt, subscriptionRef: o.subscription as string }];
+      const subMeta = ((o.subscription_details as { metadata?: Record<string, string> } | undefined)
+        ?.metadata ??
+        (o.parent as { subscription_details?: { metadata?: Record<string, string> } } | undefined)
+          ?.subscription_details?.metadata ??
+        {}) as Record<string, string>;
+      return [
+        {
+          provider: this.id,
+          providerEventId: evt.id,
+          type: 'subscription.renewed',
+          customerRef: subMeta.customer_id,
+          planCode: subMeta.plan_code as 'monthly' | 'yearly',
+          amount,
+          currency,
+          occurredAt,
+          subscriptionRef: o.subscription as string,
+        },
+      ];
     }
-    if (evt.type === 'invoice.payment_failed') return [{ provider: this.id, providerEventId: evt.id, type: 'payment.failed', occurredAt, subscriptionRef: o.subscription as string }];
-    if (evt.type === 'customer.subscription.deleted') return [{ provider: this.id, providerEventId: evt.id, type: 'subscription.canceled', occurredAt, subscriptionRef: o.id as string, customerRef: meta.customer_id }];
+    if (evt.type === 'invoice.payment_failed')
+      return [
+        {
+          provider: this.id,
+          providerEventId: evt.id,
+          type: 'payment.failed',
+          occurredAt,
+          subscriptionRef: o.subscription as string,
+        },
+      ];
+    if (evt.type === 'customer.subscription.deleted')
+      return [
+        {
+          provider: this.id,
+          providerEventId: evt.id,
+          type: 'subscription.canceled',
+          occurredAt,
+          subscriptionRef: o.id as string,
+          customerRef: meta.customer_id,
+        },
+      ];
     return [];
   }
 }

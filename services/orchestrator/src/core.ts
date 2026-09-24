@@ -1,18 +1,42 @@
 import path from 'node:path';
 import { AuditLog } from '@jarvis/audit';
-import { DEFAULT_POLICY, PermissionManager, type ConfirmHandler, type PermissionPolicy } from '@jarvis/permissions';
+import {
+  DEFAULT_POLICY,
+  PermissionManager,
+  type ConfirmHandler,
+  type PermissionPolicy,
+} from '@jarvis/permissions';
 import { AgentBus } from '@jarvis/agent-communication';
 import { AgentRegistry } from '@jarvis/agent-registry';
 import { ToolRuntime } from '@jarvis/tool-runtime';
 import { SkillRegistry } from '@jarvis/skills';
 import { MemoryStore } from '@jarvis/memory';
-import { ModelRouter, OpenRouterProvider, OpenAICompatibleProvider, DEFAULT_ROLES, type ModelProvider, type RoleConfig } from '@jarvis/model-router';
+import {
+  ModelRouter,
+  OpenRouterProvider,
+  OpenAICompatibleProvider,
+  DEFAULT_ROLES,
+  type ModelProvider,
+  type RoleConfig,
+} from '@jarvis/model-router';
 import { FileIndex, fileSystemTools } from '@jarvis/file-system';
 import { terminalTools } from '@jarvis/terminal';
 import { BrowserSession, browserTools, documentTools, type BrowserOptions } from '@jarvis/browser-control';
-import { BraveSearchProvider, SearchRouter, TavilySearchProvider, pageMetaTool, researchTools } from '@jarvis/web-research';
+import {
+  BraveSearchProvider,
+  SearchRouter,
+  TavilySearchProvider,
+  pageMetaTool,
+  researchTools,
+} from '@jarvis/web-research';
 import { PowerShellDriver, computerTools, type ComputerDriver } from '@jarvis/computer-control';
-import { OpenRouterAudioSTT, SpeechRouter, VoiceLanguageManager, WhisperCompatibleSTT, OpenAICompatibleTTS } from '@jarvis/voice';
+import {
+  OpenRouterAudioSTT,
+  SpeechRouter,
+  VoiceLanguageManager,
+  WhisperCompatibleSTT,
+  OpenAICompatibleTTS,
+} from '@jarvis/voice';
 import { Orchestrator, memoryTools, type OrchestratorHooks } from '@jarvis/agent-runtime';
 import type { GraphEvent } from '@jarvis/task-engine';
 import { AGENT_CATALOG } from '@jarvis/agents-catalog';
@@ -67,7 +91,10 @@ export type JarvisCore = ReturnType<typeof createJarvisCore>;
 export function createJarvisCore(opts: CoreOptions = {}) {
   setLogRedactor((v) => redact(v));
   const secrets = opts.secrets ?? new MemorySecretStore();
-  const settings: CoreSettings = { ...defaultSettings(opts.settings?.workspace ?? process.cwd()), ...opts.settings };
+  const settings: CoreSettings = {
+    ...defaultSettings(opts.settings?.workspace ?? process.cwd()),
+    ...opts.settings,
+  };
   const secret = (n: (typeof SECRET_NAMES)[number]) => () => secrets.get(n) || undefined;
 
   const audit = new AuditLog(opts.dataDir ? path.join(opts.dataDir, 'audit.jsonl') : undefined);
@@ -80,15 +107,31 @@ export function createJarvisCore(opts: CoreOptions = {}) {
 
   // Model gateway: OpenRouter primary + optional local OpenAI-compatible server (Ollama/LM Studio).
   const router = new ModelRouter(settings.roles);
-  router.register(new OpenRouterProvider({ apiKey: secret('OPENROUTER_API_KEY'), fetchImpl: opts.fetchImpl }));
+  router.register(
+    new OpenRouterProvider({ apiKey: secret('OPENROUTER_API_KEY'), fetchImpl: opts.fetchImpl }),
+  );
   if (settings.localLlm?.baseUrl)
-    router.register(new OpenAICompatibleProvider({ id: 'local', baseUrl: settings.localLlm.baseUrl, apiKey: secret('LOCAL_LLM_API_KEY'), requiresKey: false, fetchImpl: opts.fetchImpl }));
+    router.register(
+      new OpenAICompatibleProvider({
+        id: 'local',
+        baseUrl: settings.localLlm.baseUrl,
+        apiKey: secret('LOCAL_LLM_API_KEY'),
+        requiresKey: false,
+        fetchImpl: opts.fetchImpl,
+      }),
+    );
   for (const p of opts.extraProviders ?? []) router.register(p);
 
   // Tools
   const fileIndex = new FileIndex();
-  const browser = new BrowserSession({ profileDir: opts.dataDir ? path.join(opts.dataDir, 'browser-profile') : undefined, ...opts.browser });
-  const search = new SearchRouter([new BraveSearchProvider(secret('BRAVE_SEARCH_API_KEY'), opts.fetchImpl), new TavilySearchProvider(secret('TAVILY_API_KEY'), opts.fetchImpl)]);
+  const browser = new BrowserSession({
+    profileDir: opts.dataDir ? path.join(opts.dataDir, 'browser-profile') : undefined,
+    ...opts.browser,
+  });
+  const search = new SearchRouter([
+    new BraveSearchProvider(secret('BRAVE_SEARCH_API_KEY'), opts.fetchImpl),
+    new TavilySearchProvider(secret('TAVILY_API_KEY'), opts.fetchImpl),
+  ]);
   const computer = opts.computerDriver ?? new PowerShellDriver();
   for (const t of [
     ...fileSystemTools(fileIndex),
@@ -107,20 +150,38 @@ export function createJarvisCore(opts: CoreOptions = {}) {
 
   for (const a of AGENT_CATALOG) registry.register(a);
   const refreshAgentHealth = () => {
-    for (const a of registry.list()) registry.setUnavailableTools(a.def.id, a.def.tools.filter((t) => tools.statusOf(t).state !== 'active'));
+    for (const a of registry.list())
+      registry.setUnavailableTools(
+        a.def.id,
+        a.def.tools.filter((t) => tools.statusOf(t).state !== 'active'),
+      );
   };
   refreshAgentHealth();
 
   // Voice
   const voiceLanguages = new VoiceLanguageManager();
   const speech = new SpeechRouter([
-    new WhisperCompatibleSTT({ baseUrl: settings.stt.baseUrl, model: settings.stt.model, apiKey: secret('STT_API_KEY'), requiresKey: true, fetchImpl: opts.fetchImpl }),
+    new WhisperCompatibleSTT({
+      baseUrl: settings.stt.baseUrl,
+      model: settings.stt.model,
+      apiKey: secret('STT_API_KEY'),
+      requiresKey: true,
+      fetchImpl: opts.fetchImpl,
+    }),
     new OpenRouterAudioSTT(router),
   ]);
-  const tts = new OpenAICompatibleTTS({ baseUrl: settings.tts.baseUrl, model: settings.tts.model, defaultVoice: settings.tts.voice, apiKey: secret('TTS_API_KEY'), fetchImpl: opts.fetchImpl });
+  const tts = new OpenAICompatibleTTS({
+    baseUrl: settings.tts.baseUrl,
+    model: settings.tts.model,
+    defaultVoice: settings.tts.voice,
+    apiKey: secret('TTS_API_KEY'),
+    fetchImpl: opts.fetchImpl,
+  });
 
   // Live graph/progress/reply-delta stream for UIs, layered over caller hooks.
-  type LiveEvent = { kind: 'graph'; requestId: string; event: GraphEvent } | { kind: 'delta'; requestId: string; text: string };
+  type LiveEvent =
+    | { kind: 'graph'; requestId: string; event: GraphEvent }
+    | { kind: 'delta'; requestId: string; text: string };
   const liveListeners = new Set<(e: LiveEvent) => void>();
   const emitLive = (e: LiveEvent) => {
     for (const l of liveListeners) l(e);
@@ -143,10 +204,32 @@ export function createJarvisCore(opts: CoreOptions = {}) {
   function capabilities(): CapabilityStatus[] {
     const modelOk = router.isRoleAvailable('reasoning');
     const list: CapabilityStatus[] = [
-      { id: 'models', label: 'AI models (OpenRouter)', state: modelOk ? 'active' : 'not_configured', requirement: modelOk ? undefined : 'Add an OpenRouter API key in Settings > Providers' },
-      { id: 'orchestration', label: 'Agent orchestration', state: modelOk ? 'active' : 'not_configured', requirement: modelOk ? undefined : 'Requires a configured model provider' },
-      { id: 'voice.stt', label: 'Speech recognition', state: speech.available().length ? 'active' : 'not_configured', requirement: speech.available().length ? undefined : 'Add an OpenRouter key (audio model) or a Whisper-compatible STT key' },
-      { id: 'voice.tts', label: 'Speech synthesis', state: 'active', reason: tts.isConfigured() ? 'Cloud TTS configured' : 'Using Windows voices (local)' },
+      {
+        id: 'models',
+        label: 'AI models (OpenRouter)',
+        state: modelOk ? 'active' : 'not_configured',
+        requirement: modelOk ? undefined : 'Add an OpenRouter API key in Settings > Providers',
+      },
+      {
+        id: 'orchestration',
+        label: 'Agent orchestration',
+        state: modelOk ? 'active' : 'not_configured',
+        requirement: modelOk ? undefined : 'Requires a configured model provider',
+      },
+      {
+        id: 'voice.stt',
+        label: 'Speech recognition',
+        state: speech.available().length ? 'active' : 'not_configured',
+        requirement: speech.available().length
+          ? undefined
+          : 'Add an OpenRouter key (audio model) or a Whisper-compatible STT key',
+      },
+      {
+        id: 'voice.tts',
+        label: 'Speech synthesis',
+        state: 'active',
+        reason: tts.isConfigured() ? 'Cloud TTS configured' : 'Using Windows voices (local)',
+      },
     ];
     const modules = new Map<string, string[]>();
     for (const t of tools.list()) modules.set(t.module, [...(modules.get(t.module) ?? []), t.id]);
@@ -154,7 +237,12 @@ export function createJarvisCore(opts: CoreOptions = {}) {
       const states = ids.map((i) => tools.statusOf(i));
       const active = states.filter((s) => s.state === 'active').length;
       const first = states.find((s) => s.state !== 'active');
-      list.push({ id: `module.${mod}`, label: mod, state: active === ids.length ? 'active' : active > 0 ? 'degraded' : (first?.state ?? 'disabled'), reason: first?.reason });
+      list.push({
+        id: `module.${mod}`,
+        label: mod,
+        state: active === ids.length ? 'active' : active > 0 ? 'degraded' : (first?.state ?? 'disabled'),
+        reason: first?.reason,
+      });
     }
     return list;
   }

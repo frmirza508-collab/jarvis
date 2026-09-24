@@ -15,7 +15,11 @@ export class ManualBankTransferProvider implements BillingProvider {
   }
   async createCheckout(req: CheckoutRequest): Promise<CheckoutSession> {
     const reference = `JRV-${req.plan.code.toUpperCase().slice(0, 1)}-${randomBytes(4).toString('hex').toUpperCase()}`;
-    return { provider: this.id, reference, instructions: `${await this.instructions()}\n\nAmount: ${req.plan.amount.toLocaleString('en-PK')} ${req.plan.currency}\nReference: ${reference}` };
+    return {
+      provider: this.id,
+      reference,
+      instructions: `${await this.instructions()}\n\nAmount: ${req.plan.amount.toLocaleString('en-PK')} ${req.plan.currency}\nReference: ${reference}`,
+    };
   }
   async parseWebhook(): Promise<BillingEvent[]> {
     throw new WebhookVerificationError('Manual provider has no webhooks');

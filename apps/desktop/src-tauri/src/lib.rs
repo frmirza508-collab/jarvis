@@ -30,7 +30,11 @@ struct CoreState {
     child: Mutex<Option<Child>>,
     // Held open for the life of the app: the core exits when its stdin closes.
     stdin: Mutex<Option<ChildStdin>>,
+    shutting_down: std::sync::atomic::AtomicBool,
+    restarts: std::sync::atomic::AtomicU32,
 }
+
+const MAX_RESTARTS: u32 = 5;
 
 #[tauri::command]
 fn core_connection(state: State<'_, Arc<CoreState>>) -> Result<Option<CoreConnection>, String> {
@@ -133,15 +137,34 @@ fn start_core(state: Arc<CoreState>) -> Result<(), String> {
             }
             let _ = writeln!(log, "{line}");
         }
-        let mut err = st.error.lock().unwrap();
-        if err.is_none() && st.conn.lock().unwrap().is_none() {
-            *err = Some(format!("JARVIS core exited during startup. See {}", log_path.display()));
+        // The core's stdout closed: it exited. Recover unless the app is quitting.
+        let was_ready = st.conn.lock().unwrap().take().is_some();
+        if let Some(mut c) = st.child.lock().unwrap().take() {
+            let _ = c.wait();
+        }
+        st.stdin.lock().unwrap().take();
+        if st.shutting_down.load(std::sync::atomic::Ordering::SeqCst) {
+            return;
+        }
+        let n = st.restarts.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+        let _ = writeln!(log, "[shell] core exited unexpectedly (restart {n}/{MAX_RESTARTS})");
+        if !was_ready || n > MAX_RESTARTS {
+            let mut err = st.error.lock().unwrap();
+            if err.is_none() {
+                *err = Some(format!("JARVIS core stopped and could not be restarted. See {}", log_path.display()));
+            }
+            return;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(500 * u64::from(n)));
+        if let Err(e) = start_core(st.clone()) {
+            *st.error.lock().unwrap() = Some(e);
         }
     });
     Ok(())
 }
 
 fn stop_core(state: &CoreState) {
+    state.shutting_down.store(true, std::sync::atomic::Ordering::SeqCst);
     state.stdin.lock().unwrap().take();
     if let Some(mut child) = state.child.lock().unwrap().take() {
         let _ = child.kill();

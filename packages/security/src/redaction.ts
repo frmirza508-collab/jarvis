@@ -14,7 +14,8 @@ const PATTERNS: Array<[RegExp, string]> = [
   [/(postgres(?:ql)?:\/\/[^:\s]+:)[^@\s]+@/g, '$1[REDACTED]@'],
 ];
 
-const SENSITIVE_KEYS = /^(api[-_]?key|apikey|secret|password|passwd|token|access[-_]?token|refresh[-_]?token|authorization|private[-_]?key|signing[-_]?key|client[-_]?secret|cookie)$/i;
+const SENSITIVE_KEYS =
+  /^(api[-_]?key|apikey|secret|password|passwd|token|access[-_]?token|refresh[-_]?token|authorization|private[-_]?key|signing[-_]?key|client[-_]?secret|cookie)$/i;
 
 export function redactString(input: string): string {
   let out = input;

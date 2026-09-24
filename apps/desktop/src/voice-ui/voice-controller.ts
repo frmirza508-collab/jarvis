@@ -17,7 +17,8 @@ async function cloudTts(text: string, language: string): Promise<Blob | null> {
 export function voiceEngine(): VoiceEngine {
   if (engine) return engine;
   engine = new VoiceEngine({
-    onState: (s) => setState((st) => ({ voice: { ...st.voice, state: s === 'idle' && awaitingRequest ? 'thinking' : s } })),
+    onState: (s) =>
+      setState((st) => ({ voice: { ...st.voice, state: s === 'idle' && awaitingRequest ? 'thinking' : s } })),
     onLevel: (level) => {
       const v = getState().voice;
       if (Math.abs(v.level - level) > 0.02) setState({ voice: { ...v, level } });
@@ -26,11 +27,16 @@ export function voiceEngine(): VoiceEngine {
     onUtterance: async (wav) => {
       const hint = getState().prefs.voiceLanguage;
       try {
-        const t = await core().request<{ text: string; language: string }>('POST', '/voice/transcribe', undefined, {
-          data: wav,
-          contentType: 'audio/wav',
-          headers: hint !== 'auto' ? { 'X-Language-Hint': hint } : {},
-        });
+        const t = await core().request<{ text: string; language: string }>(
+          'POST',
+          '/voice/transcribe',
+          undefined,
+          {
+            data: wav,
+            contentType: 'audio/wav',
+            headers: hint !== 'auto' ? { 'X-Language-Hint': hint } : {},
+          },
+        );
         if (!t.text.trim()) {
           engine!.markIdle();
           return;
@@ -55,7 +61,10 @@ export function voiceEngine(): VoiceEngine {
     }
     void engine!.speak(r.reply, r.language, cloudTts).then((how) => {
       if (how === 'none') {
-        notify('warning', `No ${r.language === 'ur' ? 'Urdu' : r.language === 'zh' ? 'Chinese' : r.language} voice is installed. Add one in Windows Settings > Time & language > Speech, or configure cloud TTS.`);
+        notify(
+          'warning',
+          `No ${r.language === 'ur' ? 'Urdu' : r.language === 'zh' ? 'Chinese' : r.language} voice is installed. Add one in Windows Settings > Time & language > Speech, or configure cloud TTS.`,
+        );
         engine!.markIdle();
       }
     });

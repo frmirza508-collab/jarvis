@@ -5,7 +5,13 @@ import { Glass } from '../components/Glass';
 import { toggleMicrophone, pushToTalk, speakText } from '../voice-ui/voice-controller';
 import { voiceEngine } from '../voice-ui/voice-controller';
 
-const VOICE_LABEL: Record<string, string> = { idle: 'Ready', listening: 'Listening…', transcribing: 'Understanding…', thinking: 'Working…', speaking: 'Speaking' };
+const VOICE_LABEL: Record<string, string> = {
+  idle: 'Ready',
+  listening: 'Listening…',
+  transcribing: 'Understanding…',
+  thinking: 'Working…',
+  speaking: 'Speaking',
+};
 
 export function CommandCenter() {
   const messages = useStore((s) => s.messages);
@@ -20,7 +26,10 @@ export function CommandCenter() {
   const input = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    log.current?.scrollTo({ top: log.current.scrollHeight, behavior: prefs.reducedMotion ? 'auto' : 'smooth' });
+    log.current?.scrollTo({
+      top: log.current.scrollHeight,
+      behavior: prefs.reducedMotion ? 'auto' : 'smooth',
+    });
   }, [messages, prefs.reducedMotion]);
 
   useEffect(() => {
@@ -55,15 +64,26 @@ export function CommandCenter() {
 
   const running = Object.values(live);
   return (
-    <Glass title="Command" className="command" tilt="left" actions={<span className={`voice-state vs-${voice.state}`}>{VOICE_LABEL[voice.state]}</span>}>
+    <Glass
+      title="Command"
+      className="command"
+      tilt="left"
+      actions={<span className={`voice-state vs-${voice.state}`}>{VOICE_LABEL[voice.state]}</span>}
+    >
       {!modelsOk && (
         <div className="banner warn">
-          No AI model configured. <button className="link" onClick={() => go('settings')}>Add your OpenRouter key</button>
+          No AI model configured.{' '}
+          <button className="link" onClick={() => go('settings')}>
+            Add your OpenRouter key
+          </button>
         </div>
       )}
       {license && !license.premium && (
         <div className="banner warn">
-          {license.status === 'expired' ? 'Subscription expired.' : 'No active subscription.'} <button className="link" onClick={() => go('account')}>Open Account</button>
+          {license.status === 'expired' ? 'Subscription expired.' : 'No active subscription.'}{' '}
+          <button className="link" onClick={() => go('account')}>
+            Open Account
+          </button>
         </div>
       )}
       <div className="log" ref={log} aria-live="polite">
@@ -78,28 +98,45 @@ export function CommandCenter() {
           </div>
         )}
         {messages.map((m) => (
-          <div key={m.id} className={`msg msg-${m.role} ${m.status ?? ''}`} dir={m.language === 'ur' ? 'rtl' : 'auto'}>
+          <div
+            key={m.id}
+            className={`msg msg-${m.role} ${m.status ?? ''}`}
+            dir={m.language === 'ur' ? 'rtl' : 'auto'}
+          >
             <div className="msg-text">{m.text}</div>
             {m.result && (
               <div className="msg-meta">
-                {m.result.agents.filter((a) => a !== 'orchestrator' && a !== 'final-verification').length > 0 && <span>{m.result.agents.length - 2} specialists</span>}
-                {Object.values(m.result.outputs).flatMap((o) => o.artifacts).map((a) => (
-                  <span key={a.value} className="artifact" title={a.value}>📄 {a.value.split(/[\\/]/).pop()}</span>
-                ))}
-                {!m.result.verification.ok && <span className="warn">verification: {m.result.verification.problems.join('; ')}</span>}
+                {m.result.agents.filter((a) => a !== 'orchestrator' && a !== 'final-verification').length >
+                  0 && <span>{m.result.agents.length - 2} specialists</span>}
+                {Object.values(m.result.outputs)
+                  .flatMap((o) => o.artifacts)
+                  .map((a) => (
+                    <span key={a.value} className="artifact" title={a.value}>
+                      📄 {a.value.split(/[\\/]/).pop()}
+                    </span>
+                  ))}
+                {!m.result.verification.ok && (
+                  <span className="warn">verification: {m.result.verification.problems.join('; ')}</span>
+                )}
               </div>
             )}
             {m.status === 'pending' && m.requestId && (
-              <button className="link small" onClick={() => void cancelRequest(m.requestId!)}>Cancel</button>
+              <button className="link small" onClick={() => void cancelRequest(m.requestId!)}>
+                Cancel
+              </button>
             )}
           </div>
         ))}
         {running.map((r) => (
           <div key={r.id} className="progress-feed">
             {r.progress.slice(-4).map((p, i) => (
-              <div key={i} className="progress-line"><b>{p.from}</b> {p.message}</div>
+              <div key={i} className="progress-line">
+                <b>{p.from}</b> {p.message}
+              </div>
             ))}
-            <button className="link small" onClick={() => go('tasks')}>View task graph →</button>
+            <button className="link small" onClick={() => go('tasks')}>
+              View task graph →
+            </button>
           </div>
         ))}
       </div>
@@ -121,7 +158,10 @@ export function CommandCenter() {
           onMouseDown={() => micOn && !prefs.handsFree && pushToTalk(true)}
           onMouseUp={() => micOn && !prefs.handsFree && pushToTalk(false)}
         >
-          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="9" y="3" width="6" height="11" rx="3" />
+            <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
+          </svg>
         </button>
         <textarea
           ref={input}
@@ -138,7 +178,9 @@ export function CommandCenter() {
             }
           }}
         />
-        <button type="submit" className="send" disabled={!text.trim()}>Send</button>
+        <button type="submit" className="send" disabled={!text.trim()}>
+          Send
+        </button>
       </form>
     </Glass>
   );

@@ -14,10 +14,14 @@ for (const entry of ['main', 'cli']) {
     platform: 'node',
     target: 'node22',
     format: 'esm',
-    banner: { js: "import { createRequire as __cr } from 'node:module'; const require = __cr(import.meta.url);" },
+    banner: {
+      js: "import { createRequire as __cr } from 'node:module'; const require = __cr(import.meta.url);",
+    },
     external: ['pg-native'],
     logLevel: 'warning',
   });
 }
-cpSync(path.resolve(root, '../../infra/database/migrations'), path.join(root, 'dist/migrations'), { recursive: true });
+cpSync(path.resolve(root, '../../infra/database/migrations'), path.join(root, 'dist/migrations'), {
+  recursive: true,
+});
 console.log('Built services/license-api/dist (main.js, cli.js, migrations/)');

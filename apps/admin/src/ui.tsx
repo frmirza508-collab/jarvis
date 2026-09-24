@@ -13,7 +13,6 @@ export function useLoad<T>(fn: () => Promise<T>, deps: unknown[] = []) {
       })
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
   useEffect(reload, [reload]);
   return { data, error, loading, reload };
@@ -23,7 +22,15 @@ export function Status({ value }: { value: string }) {
   return <span className={`badge badge-${value}`}>{value.replace('_', ' ')}</span>;
 }
 
-export function Page({ title, actions, children }: { title: string; actions?: ReactNode; children: ReactNode }) {
+export function Page({
+  title,
+  actions,
+  children,
+}: {
+  title: string;
+  actions?: ReactNode;
+  children: ReactNode;
+}) {
   return (
     <section className="page">
       <header className="page-header">
@@ -36,10 +43,22 @@ export function Page({ title, actions, children }: { title: string; actions?: Re
 }
 
 export function ErrorBox({ error }: { error: string | null }) {
-  return error ? <div className="error" role="alert">{error}</div> : null;
+  return error ? (
+    <div className="error" role="alert">
+      {error}
+    </div>
+  ) : null;
 }
 
-export function SearchBar({ onSearch, placeholder, children }: { onSearch: (q: string) => void; placeholder: string; children?: ReactNode }) {
+export function SearchBar({
+  onSearch,
+  placeholder,
+  children,
+}: {
+  onSearch: (q: string) => void;
+  placeholder: string;
+  children?: ReactNode;
+}) {
   const [q, setQ] = useState('');
   return (
     <form
@@ -49,7 +68,12 @@ export function SearchBar({ onSearch, placeholder, children }: { onSearch: (q: s
         onSearch(q);
       }}
     >
-      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={placeholder} aria-label={placeholder} />
+      <input
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder={placeholder}
+        aria-label={placeholder}
+      />
       {children}
       <button type="submit">Search</button>
     </form>
@@ -57,7 +81,11 @@ export function SearchBar({ onSearch, placeholder, children }: { onSearch: (q: s
 }
 
 /** Runs an admin action with confirmation and a reason prompt. */
-export async function confirmAction(message: string, run: (reason?: string) => Promise<unknown>, askReason = false): Promise<boolean> {
+export async function confirmAction(
+  message: string,
+  run: (reason?: string) => Promise<unknown>,
+  askReason = false,
+): Promise<boolean> {
   if (!window.confirm(message)) return false;
   const reason = askReason ? (window.prompt('Reason (recorded in audit log):') ?? undefined) : undefined;
   try {

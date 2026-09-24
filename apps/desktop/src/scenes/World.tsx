@@ -10,20 +10,31 @@ import { TaskGraph3D } from './TaskGraph3D';
 import { Modules3D } from './Modules3D';
 import { MemoryCloud } from './MemoryCloud';
 
-type RendererProps = { canvas: HTMLCanvasElement | OffscreenCanvas; antialias?: boolean; powerPreference?: string; alpha?: boolean };
+type RendererProps = {
+  canvas: HTMLCanvasElement | OffscreenCanvas;
+  antialias?: boolean;
+  powerPreference?: string;
+  alpha?: boolean;
+};
 
 /**
  * Renderer selection: WebGPU when available and requested ("auto"), otherwise
  * WebGL2. Any WebGPU initialisation failure falls back to WebGL transparently.
  */
 async function createRenderer(props: RendererProps, prefs: Prefs): Promise<THREE.WebGLRenderer> {
-  const wantGpu = prefs.renderer === 'webgpu' || (prefs.renderer === 'auto' && typeof navigator !== 'undefined' && 'gpu' in navigator);
+  const wantGpu =
+    prefs.renderer === 'webgpu' ||
+    (prefs.renderer === 'auto' && typeof navigator !== 'undefined' && 'gpu' in navigator);
   if (wantGpu) {
     try {
       const gpu = (navigator as Navigator & { gpu?: { requestAdapter: () => Promise<unknown> } }).gpu;
       if (!gpu || !(await gpu.requestAdapter())) throw new Error('no adapter');
       const mod = await import('three/webgpu');
-      const r = new mod.WebGPURenderer({ canvas: props.canvas as HTMLCanvasElement, antialias: prefs.quality !== 'low', powerPreference: 'high-performance' });
+      const r = new mod.WebGPURenderer({
+        canvas: props.canvas as HTMLCanvasElement,
+        antialias: prefs.quality !== 'low',
+        powerPreference: 'high-performance',
+      });
       await r.init();
       setState({ rendererKind: 'webgpu' });
       return r as unknown as THREE.WebGLRenderer;
@@ -31,7 +42,12 @@ async function createRenderer(props: RendererProps, prefs: Prefs): Promise<THREE
       /* fall through to WebGL */
     }
   }
-  const r = new THREE.WebGLRenderer({ canvas: props.canvas as HTMLCanvasElement, antialias: prefs.quality !== 'low', powerPreference: 'high-performance', alpha: false });
+  const r = new THREE.WebGLRenderer({
+    canvas: props.canvas as HTMLCanvasElement,
+    antialias: prefs.quality !== 'low',
+    powerPreference: 'high-performance',
+    alpha: false,
+  });
   setState({ rendererKind: 'webgl' });
   return r;
 }
@@ -89,7 +105,8 @@ export function World() {
   const live = useStore((s) => s.live);
   const view = useStore((s) => s.view);
   const busy = Object.keys(live).length > 0;
-  const dpr: [number, number] = prefs.quality === 'high' ? [1, 2] : prefs.quality === 'medium' ? [1, 1.5] : [0.75, 1];
+  const dpr: [number, number] =
+    prefs.quality === 'high' ? [1, 2] : prefs.quality === 'medium' ? [1, 1.5] : [0.75, 1];
   const particles = prefs.quality === 'high' ? 1400 : prefs.quality === 'medium' ? 700 : 250;
   const showLabels = view === 'agents' || view === 'departments' || view === 'modules';
   const glFactory = useMemo(() => (props: RendererProps) => createRenderer(props, getState().prefs), []);
@@ -107,7 +124,8 @@ export function World() {
       <PerformanceMonitor
         onDecline={() => {
           const q = getState().prefs.quality;
-          if (q !== 'low') setState({ prefs: { ...getState().prefs, quality: q === 'high' ? 'medium' : 'low' } });
+          if (q !== 'low')
+            setState({ prefs: { ...getState().prefs, quality: q === 'high' ? 'medium' : 'low' } });
         }}
       />
       <FpsMeter />
@@ -115,7 +133,15 @@ export function World() {
       <ambientLight intensity={0.25} />
       <directionalLight position={[5, 10, 5]} intensity={0.6} color="#9fd8ff" />
       <Suspense fallback={null}>
-        <Stars radius={90} depth={40} count={prefs.quality === 'low' ? 1500 : 4000} factor={3} saturation={0} fade speed={prefs.reducedMotion ? 0 : 0.6} />
+        <Stars
+          radius={90}
+          depth={40}
+          count={prefs.quality === 'low' ? 1500 : 4000}
+          factor={3}
+          saturation={0}
+          fade
+          speed={prefs.reducedMotion ? 0 : 0.6}
+        />
         <JarvisCore busy={busy} />
         <EnergyParticles count={particles} busy={busy} />
         <Constellation showLabels={showLabels} />

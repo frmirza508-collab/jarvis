@@ -25,8 +25,10 @@ export async function resolveConnection(): Promise<CoreConnection> {
     throw new Error('JARVIS core did not start. See %APPDATA%\\JARVIS\\logs\\core.log');
   }
   const params = new URLSearchParams(location.search);
-  const url = params.get('core') ?? (import.meta.env.VITE_CORE_URL as string | undefined) ?? 'http://127.0.0.1:7801';
-  const token = params.get('token') ?? (import.meta.env.VITE_CORE_TOKEN as string | undefined) ?? 'dev-token-change-me';
+  const url =
+    params.get('core') ?? (import.meta.env.VITE_CORE_URL as string | undefined) ?? 'http://127.0.0.1:7801';
+  const token =
+    params.get('token') ?? (import.meta.env.VITE_CORE_TOKEN as string | undefined) ?? 'dev-token-change-me';
   return { url, token };
 }
 
@@ -47,10 +49,22 @@ export class CoreClient {
   private closed = false;
   connected = false;
 
-  constructor(readonly conn: CoreConnection) {}
+  constructor(
+    public conn: CoreConnection,
+    /** Re-resolves the connection after the shell restarted a crashed core (new port and token). */
+    private readonly resolver?: () => Promise<CoreConnection>,
+  ) {}
 
-  async request<T = unknown>(method: string, path: string, body?: unknown, raw?: { data: Blob; contentType: string; headers?: Record<string, string> }): Promise<T> {
-    const headers: Record<string, string> = { Authorization: `Bearer ${this.conn.token}`, ...(raw?.headers ?? {}) };
+  async request<T = unknown>(
+    method: string,
+    path: string,
+    body?: unknown,
+    raw?: { data: Blob; contentType: string; headers?: Record<string, string> },
+  ): Promise<T> {
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${this.conn.token}`,
+      ...(raw?.headers ?? {}),
+    };
     let payload: BodyInit | undefined;
     if (raw) {
       headers['Content-Type'] = raw.contentType;
@@ -62,18 +76,20 @@ export class CoreClient {
     const res = await fetch(`${this.conn.url}${path}`, { method, headers, body: payload });
     const ct = res.headers.get('content-type') ?? '';
     if (!res.ok) {
-      const j = ct.includes('json') ? ((await res.json()) as { error?: string; message?: string }) : { message: await res.text() };
+      const j = ct.includes('json')
+        ? ((await res.json()) as { error?: string; message?: string })
+        : { message: await res.text() };
       throw new CoreError(res.status, j.error ?? 'ERROR', j.message ?? `Request failed (${res.status})`);
     }
     if (ct.includes('json')) return (await res.json()) as T;
     return (await res.blob()) as T;
   }
 
-  get = <T,>(p: string) => this.request<T>('GET', p);
-  post = <T,>(p: string, b?: unknown) => this.request<T>('POST', p, b ?? {});
-  put = <T,>(p: string, b: unknown) => this.request<T>('PUT', p, b);
-  patch = <T,>(p: string, b: unknown) => this.request<T>('PATCH', p, b);
-  del = <T,>(p: string) => this.request<T>('DELETE', p);
+  get = <T>(p: string) => this.request<T>('GET', p);
+  post = <T>(p: string, b?: unknown) => this.request<T>('POST', p, b ?? {});
+  put = <T>(p: string, b: unknown) => this.request<T>('PUT', p, b);
+  patch = <T>(p: string, b: unknown) => this.request<T>('PATCH', p, b);
+  del = <T>(p: string) => this.request<T>('DELETE', p);
 
   onMessage(fn: (m: ServerMessage) => void): () => void {
     this.listeners.add(fn);
@@ -101,7 +117,17 @@ export class CoreClient {
     ws.onclose = () => {
       this.connected = false;
       for (const l of this.stateListeners) l(false);
-      if (!this.closed) setTimeout(() => this.connect(), 1500);
+      if (this.closed) return;
+      setTimeout(async () => {
+        if (this.resolver) {
+          try {
+            this.conn = await this.resolver();
+          } catch {
+            /* keep previous connection details and retry */
+          }
+        }
+        this.connect();
+      }, 1500);
     };
   }
 

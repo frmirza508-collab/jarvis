@@ -22,7 +22,16 @@ export class ScriptedProvider implements ModelProvider {
     this.calls.push(req);
     const r = this.script(req, this.calls.length - 1);
     const p = typeof r === 'string' ? { content: r } : r;
-    return { id: `c${this.calls.length}`, model: req.model, content: '', toolCalls: [], finishReason: 'stop', usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 }, provider: this.id, ...p };
+    return {
+      id: `c${this.calls.length}`,
+      model: req.model,
+      content: '',
+      toolCalls: [],
+      finishReason: 'stop',
+      usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+      provider: this.id,
+      ...p,
+    };
   }
   async listModels(): Promise<ModelInfo[]> {
     return [];

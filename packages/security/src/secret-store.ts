@@ -58,7 +58,12 @@ export function encrypt(key: Buffer, plaintext: string, aad = 'jarvis-secrets'):
   const c = createCipheriv('aes-256-gcm', key, iv);
   c.setAAD(Buffer.from(aad));
   const data = Buffer.concat([c.update(plaintext, 'utf8'), c.final()]);
-  return { v: 1, iv: iv.toString('base64'), tag: c.getAuthTag().toString('base64'), data: data.toString('base64') };
+  return {
+    v: 1,
+    iv: iv.toString('base64'),
+    tag: c.getAuthTag().toString('base64'),
+    data: data.toString('base64'),
+  };
 }
 
 export function decrypt(key: Buffer, env: Envelope, aad = 'jarvis-secrets'): string {

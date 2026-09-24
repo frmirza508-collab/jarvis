@@ -16,4 +16,5 @@
 6. **Publish** the installer and checksum. Record the release in `RELEASE_NOTES.md`.
 
 ## CI
+
 `.github/workflows/ci.yml` runs lint, typecheck and tests (with PostgreSQL and Chromium) on Ubuntu, and builds the Windows installer natively on `windows-latest` (MSVC). Signing secrets are read from repository secrets when present.

@@ -1,6 +1,7 @@
 # Installation Guide
 
 ## End users (Windows 10 1809+ / Windows 11, 64-bit)
+
 1. Run `JARVIS-Setup-<version>-x64.exe`. No administrator rights are needed; JARVIS installs to `%LOCALAPPDATA%\Programs\JARVIS`.
 2. If the installer reports that the **Microsoft Edge WebView2 Runtime** is missing (rare on Windows 11), it opens Microsoft's download page. Install it, then start JARVIS.
 3. Start JARVIS from the Start menu. On first run:
@@ -13,10 +14,13 @@
 Verify the download: compare `certutil -hashfile JARVIS-Setup-<version>-x64.exe SHA256` with the published `.sha256`.
 
 ### Update
+
 Run the newer installer. It stops JARVIS, replaces the program files and keeps your data (`%APPDATA%\JARVIS`) and keys.
 
 ### Uninstall
+
 Use **Settings › Apps › JARVIS › Uninstall** or the Start-menu uninstaller. Your data is kept unless you tick "Also remove JARVIS data". Your own documents are never touched.
 
 ## Operators (license server)
+
 See [licensing/LICENSING.md](../licensing/LICENSING.md#deployment) and `infra/deployment/`.

@@ -12,7 +12,15 @@ describe('language detection', () => {
   it('supports adding languages later', () => {
     const reg = new LanguageRegistry();
     const vm = new VoiceLanguageManager(reg);
-    vm.addLanguage({ tag: 'hi-IN', code: 'hi', name: 'Hindi', nativeName: 'हिन्दी', direction: 'ltr', script: 'Deva', builtIn: false });
+    vm.addLanguage({
+      tag: 'hi-IN',
+      code: 'hi',
+      name: 'Hindi',
+      nativeName: 'हिन्दी',
+      direction: 'ltr',
+      script: 'Deva',
+      builtIn: false,
+    });
     expect(detectLanguage('मेरा फ़ोल्डर खोलो', reg).code).toBe('hi');
     expect(vm.enabled().map((l) => l.code)).toEqual(['en', 'ur', 'zh', 'hi']);
   });

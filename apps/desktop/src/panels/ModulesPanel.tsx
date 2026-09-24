@@ -21,7 +21,11 @@ export function ModulesPanel() {
             <li key={c.id}>
               <StateBadge state={c.state} /> <b>{c.label}</b>
               {(c.requirement || c.reason) && <div className="hint">{c.requirement ?? c.reason}</div>}
-              {c.state === 'not_configured' && <button className="link small" onClick={() => go('settings')}>Configure</button>}
+              {c.state === 'not_configured' && (
+                <button className="link small" onClick={() => go('settings')}>
+                  Configure
+                </button>
+              )}
             </li>
           ))}
         </ul>
@@ -31,15 +35,27 @@ export function ModulesPanel() {
           <details key={m} open>
             <summary>{m}</summary>
             <ul className="tools">
-              {tools.filter((t) => t.module === m).map((t) => (
-                <li key={t.id}><code>{t.id}</code> <StateBadge state={t.status.state} /> — {t.description} <small>[{t.categories.join(', ')}]</small></li>
-              ))}
+              {tools
+                .filter((t) => t.module === m)
+                .map((t) => (
+                  <li key={t.id}>
+                    <code>{t.id}</code> <StateBadge state={t.status.state} /> — {t.description}{' '}
+                    <small>[{t.categories.join(', ')}]</small>
+                  </li>
+                ))}
             </ul>
           </details>
         ))}
         <h3>Skills (reusable workflows)</h3>
         <ul className="tools">
-          {skills.map((s) => (<li key={s.id}><code>{s.id}</code> — {s.description} <small>uses {s.tools.join(', ')} · runs {s.stats.runs}, failures {s.stats.failures}</small></li>))}
+          {skills.map((s) => (
+            <li key={s.id}>
+              <code>{s.id}</code> — {s.description}{' '}
+              <small>
+                uses {s.tools.join(', ')} · runs {s.stats.runs}, failures {s.stats.failures}
+              </small>
+            </li>
+          ))}
         </ul>
       </Glass>
     </>

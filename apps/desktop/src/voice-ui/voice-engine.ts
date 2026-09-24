@@ -14,45 +14,9 @@ export interface VoiceCallbacks {
   onError: (message: string) => void;
 }
 
-const TARGET_RATE = 16_000;
+import { downsample, encodeWav, TARGET_RATE } from './wav';
 
-export function encodeWav(samples: Float32Array, sampleRate: number): Blob {
-  const buf = new ArrayBuffer(44 + samples.length * 2);
-  const v = new DataView(buf);
-  const w = (o: number, s: string) => [...s].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
-  w(0, 'RIFF');
-  v.setUint32(4, 36 + samples.length * 2, true);
-  w(8, 'WAVE');
-  w(12, 'fmt ');
-  v.setUint32(16, 16, true);
-  v.setUint16(20, 1, true);
-  v.setUint16(22, 1, true);
-  v.setUint32(24, sampleRate, true);
-  v.setUint32(28, sampleRate * 2, true);
-  v.setUint16(32, 2, true);
-  v.setUint16(34, 16, true);
-  w(36, 'data');
-  v.setUint32(40, samples.length * 2, true);
-  for (let i = 0; i < samples.length; i++) {
-    const s = Math.max(-1, Math.min(1, samples[i]!));
-    v.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
-  }
-  return new Blob([buf], { type: 'audio/wav' });
-}
-
-export function downsample(input: Float32Array, from: number, to = TARGET_RATE): Float32Array {
-  if (from === to) return input;
-  const ratio = from / to;
-  const out = new Float32Array(Math.floor(input.length / ratio));
-  for (let i = 0; i < out.length; i++) {
-    const start = Math.floor(i * ratio);
-    const end = Math.min(input.length, Math.floor((i + 1) * ratio));
-    let sum = 0;
-    for (let j = start; j < end; j++) sum += input[j]!;
-    out[i] = sum / Math.max(1, end - start);
-  }
-  return out;
-}
+export { downsample, encodeWav };
 
 export class VoiceEngine {
   private ctx?: AudioContext;
@@ -88,9 +52,13 @@ export class VoiceEngine {
     this.handsFree = handsFree;
     if (this.stream) return;
     try {
-      this.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } });
+      this.stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
+      });
     } catch (e) {
-      this.cb.onError(`Microphone unavailable: ${(e as Error).message}. Allow microphone access in Windows Settings > Privacy > Microphone.`);
+      this.cb.onError(
+        `Microphone unavailable: ${(e as Error).message}. Allow microphone access in Windows Settings > Privacy > Microphone.`,
+      );
       throw e;
     }
     this.ctx = new AudioContext();
@@ -102,7 +70,8 @@ export class VoiceEngine {
     this.processor = this.ctx.createScriptProcessor(4096, 1, 1);
     src.connect(this.processor);
     this.processor.connect(this.ctx.destination);
-    this.processor.onaudioprocess = (ev) => this.onAudio(ev.inputBuffer.getChannelData(0), ev.inputBuffer.duration * 1000);
+    this.processor.onaudioprocess = (ev) =>
+      this.onAudio(ev.inputBuffer.getChannelData(0), ev.inputBuffer.duration * 1000);
   }
 
   stop(): void {
@@ -171,7 +140,7 @@ export class VoiceEngine {
       off += c.length;
     }
     this.chunks = [];
-    if (!this.ctx || total < (this.ctx.sampleRate * 0.4)) {
+    if (!this.ctx || total < this.ctx.sampleRate * 0.4) {
       this.set('idle');
       return;
     }
@@ -188,18 +157,29 @@ export class VoiceEngine {
     const voices = typeof speechSynthesis !== 'undefined' ? speechSynthesis.getVoices() : [];
     const code = lang.split('-')[0]!.toLowerCase();
     const matches = voices.filter((v) => v.lang.toLowerCase().startsWith(code));
-    const preferred = { en: ['en-us', 'en-gb'], ur: ['ur-pk', 'ur-in'], zh: ['zh-cn', 'zh-tw', 'zh-hk'] }[code] ?? [];
+    const preferred =
+      { en: ['en-us', 'en-gb'], ur: ['ur-pk', 'ur-in'], zh: ['zh-cn', 'zh-tw', 'zh-hk'] }[code] ?? [];
     for (const p of preferred) {
-      const v = matches.find((x) => x.lang.toLowerCase() === p && /natural|online|neural/i.test(x.name)) ?? matches.find((x) => x.lang.toLowerCase() === p);
+      const v =
+        matches.find((x) => x.lang.toLowerCase() === p && /natural|online|neural/i.test(x.name)) ??
+        matches.find((x) => x.lang.toLowerCase() === p);
       if (v) return v;
     }
     return matches[0];
   }
 
   /** Speak with Windows voices; falls back to the provided cloud synthesiser. */
-  async speak(text: string, lang: string, cloud?: (text: string, lang: string) => Promise<Blob | null>): Promise<'local' | 'cloud' | 'none'> {
+  async speak(
+    text: string,
+    lang: string,
+    cloud?: (text: string, lang: string) => Promise<Blob | null>,
+  ): Promise<'local' | 'cloud' | 'none'> {
     this.stopSpeaking();
-    const clean = text.replace(/[#*_`>|-]{1,}/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 1500);
+    const clean = text
+      .replace(/[#*_`>|-]{1,}/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 1500);
     if (!clean) return 'none';
     const voice = VoiceEngine.voiceFor(lang);
     if (voice) {

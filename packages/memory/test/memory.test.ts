@@ -13,7 +13,10 @@ describe('memory store', () => {
   });
   it('redacts secrets before storage', () => {
     const m = new MemoryStore();
-    const it = m.remember({ scope: 'global', content: 'my key is sk-or-v1-abcdefghijklmnopqrstuvwxyz123456' });
+    const it = m.remember({
+      scope: 'global',
+      content: 'my key is sk-or-v1-abcdefghijklmnopqrstuvwxyz123456',
+    });
     expect(it.content).not.toContain('abcdefghijklmnop');
   });
   it('only reuses lessons after verification', () => {
@@ -30,7 +33,15 @@ describe('memory store', () => {
     m.remember({ scope: 'session', content: 'temp', ttlDays: -1 });
     expect(m.purge({ expiredOnly: true })).toBe(1);
     const now = new Date().toISOString();
-    m.recordTask({ id: 't', request: 'r', status: 'running', summary: '', agents: [], startedAt: now, finishedAt: now });
+    m.recordTask({
+      id: 't',
+      request: 'r',
+      status: 'running',
+      summary: '',
+      agents: [],
+      startedAt: now,
+      finishedAt: now,
+    });
     expect(m.markInterruptedTasks()).toBe(1);
     expect(m.taskHistory()[0]!.status).toBe('interrupted');
   });

@@ -18,15 +18,21 @@ describe('file-system tools', () => {
   it('creates, reads, edits, copies, moves and searches files', async () => {
     const { ws, rt, ctx } = setup();
     await rt.tools.invoke('fs.write', { path: 'notes/a.txt', content: 'hello world' }, ctx);
-    expect((await rt.tools.invoke('fs.read', { path: 'notes/a.txt' }, ctx)) as { content: string }).toMatchObject({ content: 'hello world' });
+    expect(
+      (await rt.tools.invoke('fs.read', { path: 'notes/a.txt' }, ctx)) as { content: string },
+    ).toMatchObject({ content: 'hello world' });
     await rt.tools.invoke('fs.edit', { path: 'notes/a.txt', find: 'world', replace: 'JARVIS' }, ctx);
     expect(readFileSync(path.join(ws, 'notes/a.txt'), 'utf8')).toBe('hello JARVIS');
     await rt.tools.invoke('fs.copy', { from: 'notes/a.txt', to: 'notes/b.txt' }, ctx);
     await rt.tools.invoke('fs.move', { from: 'notes/b.txt', to: 'archive/c.txt' }, ctx);
     expect(existsSync(path.join(ws, 'archive/c.txt'))).toBe(true);
-    const found = (await rt.tools.invoke('fs.search', { query: 'c.txt', addRoot: '.' }, ctx)) as { results: Array<{ name: string }> };
+    const found = (await rt.tools.invoke('fs.search', { query: 'c.txt', addRoot: '.' }, ctx)) as {
+      results: Array<{ name: string }>;
+    };
     expect(found.results[0]!.name).toBe('c.txt');
-    const meta = (await rt.tools.invoke('fs.metadata', { path: 'archive/c.txt', hash: true }, ctx)) as { sha256: string };
+    const meta = (await rt.tools.invoke('fs.metadata', { path: 'archive/c.txt', hash: true }, ctx)) as {
+      sha256: string;
+    };
     expect(meta.sha256).toHaveLength(64);
   });
   it('refuses to overwrite without overwrite flag', async () => {
@@ -38,14 +44,18 @@ describe('file-system tools', () => {
     const confirm = vi.fn<ConfirmHandler>(async () => 'deny');
     const { ws, rt, ctx } = setup(confirm);
     writeFileSync(path.join(ws, 'keep.txt'), 'x');
-    await expect(rt.tools.invoke('fs.delete', { path: 'keep.txt' }, ctx)).rejects.toMatchObject({ code: 'PERMISSION_DENIED' });
+    await expect(rt.tools.invoke('fs.delete', { path: 'keep.txt' }, ctx)).rejects.toMatchObject({
+      code: 'PERMISSION_DENIED',
+    });
     expect(confirm).toHaveBeenCalledWith(expect.objectContaining({ risk: 'critical', action: 'fs.delete' }));
     expect(existsSync(path.join(ws, 'keep.txt'))).toBe(true);
   });
   it('blocks writes to protected system paths even when the user would allow', async () => {
     const { rt, ctx } = setup();
     const target = process.platform === 'win32' ? 'C:\\Windows\\jarvis.txt' : '/etc/jarvis-test.txt';
-    await expect(rt.tools.invoke('fs.write', { path: target, content: 'x' }, ctx)).rejects.toMatchObject({ code: 'PERMISSION_DENIED' });
+    await expect(rt.tools.invoke('fs.write', { path: target, content: 'x' }, ctx)).rejects.toMatchObject({
+      code: 'PERMISSION_DENIED',
+    });
   });
   it('audits every tool call', async () => {
     const { rt, ctx } = setup();

@@ -30,11 +30,24 @@ export function App() {
     <BrowserRouter>
       <div className="layout">
         <nav className="sidebar" aria-label="Main">
-          <div className="brand">JARVIS <span>Admin</span></div>
+          <div className="brand">
+            JARVIS <span>Admin</span>
+          </div>
           {NAV.map(([to, label]) => (
-            <NavLink key={to} to={to} end={to === '/'}>{label}</NavLink>
+            <NavLink key={to} to={to} end={to === '/'}>
+              {label}
+            </NavLink>
           ))}
-          <button className="logout" onClick={async () => { await api('POST', '/v1/auth/logout').catch(() => {}); setToken(null); setAuthed(false); }}>Sign out</button>
+          <button
+            className="logout"
+            onClick={async () => {
+              await api('POST', '/v1/auth/logout').catch(() => {});
+              setToken(null);
+              setAuthed(false);
+            }}
+          >
+            Sign out
+          </button>
         </nav>
         <main className="content">
           <Routes>

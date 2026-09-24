@@ -1,4 +1,10 @@
-import { AGENT_EVENT_TYPES, newId, type AgentEvent, type AgentEventOf, type AgentEventType } from '@jarvis/shared';
+import {
+  AGENT_EVENT_TYPES,
+  newId,
+  type AgentEvent,
+  type AgentEventOf,
+  type AgentEventType,
+} from '@jarvis/shared';
 
 type Handler<E extends AgentEvent = AgentEvent> = (e: E) => unknown;
 

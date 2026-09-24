@@ -8,7 +8,13 @@ export const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
  * X-Title headers attribute requests to the app.
  */
 export class OpenRouterProvider extends OpenAICompatibleProvider {
-  constructor(opts: { apiKey: () => string | undefined; appUrl?: string; appName?: string; fetchImpl?: typeof fetch; baseUrl?: string }) {
+  constructor(opts: {
+    apiKey: () => string | undefined;
+    appUrl?: string;
+    appName?: string;
+    fetchImpl?: typeof fetch;
+    baseUrl?: string;
+  }) {
     super({
       id: 'openrouter',
       baseUrl: opts.baseUrl ?? OPENROUTER_BASE_URL,

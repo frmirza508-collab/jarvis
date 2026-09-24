@@ -6,15 +6,16 @@ import type { ModelRouter } from '@jarvis/model-router';
 // ---------------------------------------------------------------------------
 
 const SCRIPT_RANGES: Array<[LanguageDescriptor['script'], RegExp]> = [
-  ['Arab', /[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]/g],
-  ['Hans', /[一-鿿㐀-䶿]/g],
-  ['Deva', /[ऀ-ॿ]/g],
-  ['Cyrl', /[Ѐ-ӿ]/g],
+  ['Arab', /[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]/g],
+  ['Hans', /[\u4E00-\u9FFF\u3400-\u4DBF]/g],
+  ['Deva', /[\u0900-\u097F]/g],
+  ['Cyrl', /[\u0400-\u04FF]/g],
   ['Latn', /[A-Za-z]/g],
 ];
 
 /** Common romanised-Urdu tokens so "Roman Urdu" input is routed to Urdu. */
-const ROMAN_URDU = /\b(kya|kaise|hai|hain|mujhe|aap|karo|kardo|nahi|nahin|kyun|mera|meri|tum|acha|theek|shukriya|batao|chahiye|abhi)\b/gi;
+const ROMAN_URDU =
+  /\b(kya|kaise|hai|hain|mujhe|aap|karo|kardo|nahi|nahin|kyun|mera|meri|tum|acha|theek|shukriya|batao|chahiye|abhi)\b/gi;
 
 export interface DetectedLanguage {
   code: string;
@@ -33,11 +34,14 @@ export function detectLanguage(text: string, registry = new LanguageRegistry()):
   }
   if (total === 0) return { code: 'en', confidence: 0 };
   const [bestScript, bestCount] = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]!;
-  const lang = registry.list().find((l) => l.script === bestScript || (bestScript === 'Hans' && l.script === 'Hant'));
+  const lang = registry
+    .list()
+    .find((l) => l.script === bestScript || (bestScript === 'Hans' && l.script === 'Hant'));
   if (bestScript === 'Latn') {
     const roman = text.match(ROMAN_URDU)?.length ?? 0;
     const words = text.split(/\s+/).filter(Boolean).length || 1;
-    if (registry.get('ur') && roman / words >= 0.2) return { code: 'ur', confidence: Math.min(0.9, roman / words + 0.3), romanized: true };
+    if (registry.get('ur') && roman / words >= 0.2)
+      return { code: 'ur', confidence: Math.min(0.9, roman / words + 0.3), romanized: true };
   }
   return { code: lang?.code ?? 'en', confidence: bestCount / total };
 }
@@ -56,24 +60,44 @@ export interface Transcript {
 export interface SpeechToTextProvider {
   readonly id: string;
   isConfigured(): boolean;
-  transcribe(audio: Buffer, opts: { mimeType: string; languageHint?: string; signal?: AbortSignal }): Promise<Transcript>;
+  transcribe(
+    audio: Buffer,
+    opts: { mimeType: string; languageHint?: string; signal?: AbortSignal },
+  ): Promise<Transcript>;
 }
 
 /** OpenAI-compatible /audio/transcriptions endpoint (OpenAI Whisper, Groq, local whisper servers). */
 export class WhisperCompatibleSTT implements SpeechToTextProvider {
   readonly id: string;
   constructor(
-    private readonly opts: { id?: string; baseUrl: string; model: string; apiKey?: () => string | undefined; requiresKey?: boolean; fetchImpl?: typeof fetch },
+    private readonly opts: {
+      id?: string;
+      baseUrl: string;
+      model: string;
+      apiKey?: () => string | undefined;
+      requiresKey?: boolean;
+      fetchImpl?: typeof fetch;
+    },
   ) {
     this.id = opts.id ?? 'whisper';
   }
   isConfigured(): boolean {
     return !this.opts.requiresKey || !!this.opts.apiKey?.();
   }
-  async transcribe(audio: Buffer, opts: { mimeType: string; languageHint?: string; signal?: AbortSignal }): Promise<Transcript> {
-    if (!this.isConfigured()) throw new JarvisError('NOT_CONFIGURED', `${this.id} speech-to-text key not configured`);
+  async transcribe(
+    audio: Buffer,
+    opts: { mimeType: string; languageHint?: string; signal?: AbortSignal },
+  ): Promise<Transcript> {
+    if (!this.isConfigured())
+      throw new JarvisError('NOT_CONFIGURED', `${this.id} speech-to-text key not configured`);
     const form = new FormData();
-    const ext = opts.mimeType.includes('wav') ? 'wav' : opts.mimeType.includes('mp4') ? 'm4a' : opts.mimeType.includes('ogg') ? 'ogg' : 'webm';
+    const ext = opts.mimeType.includes('wav')
+      ? 'wav'
+      : opts.mimeType.includes('mp4')
+        ? 'm4a'
+        : opts.mimeType.includes('ogg')
+          ? 'ogg'
+          : 'webm';
     form.append('file', new Blob([new Uint8Array(audio)], { type: opts.mimeType }), `speech.${ext}`);
     form.append('model', this.opts.model);
     form.append('response_format', 'verbose_json');
@@ -109,8 +133,15 @@ export class OpenRouterAudioSTT implements SpeechToTextProvider {
   isConfigured(): boolean {
     return this.router.isRoleAvailable('audio');
   }
-  async transcribe(audio: Buffer, opts: { mimeType: string; languageHint?: string; signal?: AbortSignal }): Promise<Transcript> {
-    const format = opts.mimeType.includes('wav') ? 'wav' : opts.mimeType.includes('mpeg') || opts.mimeType.includes('mp3') ? 'mp3' : null;
+  async transcribe(
+    audio: Buffer,
+    opts: { mimeType: string; languageHint?: string; signal?: AbortSignal },
+  ): Promise<Transcript> {
+    const format = opts.mimeType.includes('wav')
+      ? 'wav'
+      : opts.mimeType.includes('mpeg') || opts.mimeType.includes('mp3')
+        ? 'mp3'
+        : null;
     if (!format) throw new JarvisError('INVALID_INPUT', 'OpenRouter audio input requires WAV or MP3');
     const res = await this.router.chat('audio', {
       signal: opts.signal,
@@ -125,7 +156,10 @@ export class OpenRouterAudioSTT implements SpeechToTextProvider {
         {
           role: 'user',
           content: [
-            { type: 'text', text: opts.languageHint ? `Expected language: ${opts.languageHint}` : 'Detect the language.' },
+            {
+              type: 'text',
+              text: opts.languageHint ? `Expected language: ${opts.languageHint}` : 'Detect the language.',
+            },
             { type: 'input_audio', input_audio: { data: audio.toString('base64'), format } },
           ],
         },
@@ -138,7 +172,11 @@ export class OpenRouterAudioSTT implements SpeechToTextProvider {
       parsed = { text: res.content };
     }
     const text = (parsed.text ?? '').trim();
-    return { text, language: normaliseLanguage(parsed.language) ?? detectLanguage(text).code, provider: this.id };
+    return {
+      text,
+      language: normaliseLanguage(parsed.language) ?? detectLanguage(text).code,
+      provider: this.id,
+    };
   }
 }
 
@@ -150,13 +188,25 @@ export class OpenRouterAudioSTT implements SpeechToTextProvider {
 export interface TextToSpeechProvider {
   readonly id: string;
   isConfigured(): boolean;
-  synthesize(text: string, opts: { language: string; voice?: string; signal?: AbortSignal }): Promise<{ audio: Buffer; mimeType: string }>;
+  synthesize(
+    text: string,
+    opts: { language: string; voice?: string; signal?: AbortSignal },
+  ): Promise<{ audio: Buffer; mimeType: string }>;
 }
 
 /** OpenAI-compatible /audio/speech endpoint. */
 export class OpenAICompatibleTTS implements TextToSpeechProvider {
   readonly id: string;
-  constructor(private readonly opts: { id?: string; baseUrl: string; model: string; defaultVoice: string; apiKey?: () => string | undefined; fetchImpl?: typeof fetch }) {
+  constructor(
+    private readonly opts: {
+      id?: string;
+      baseUrl: string;
+      model: string;
+      defaultVoice: string;
+      apiKey?: () => string | undefined;
+      fetchImpl?: typeof fetch;
+    },
+  ) {
     this.id = opts.id ?? 'openai-tts';
   }
   isConfigured(): boolean {
@@ -168,7 +218,12 @@ export class OpenAICompatibleTTS implements TextToSpeechProvider {
     const res = await (this.opts.fetchImpl ?? fetch)(`${this.opts.baseUrl}/audio/speech`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-      body: JSON.stringify({ model: this.opts.model, voice: opts.voice ?? this.opts.defaultVoice, input: text, response_format: 'mp3' }),
+      body: JSON.stringify({
+        model: this.opts.model,
+        voice: opts.voice ?? this.opts.defaultVoice,
+        input: text,
+        response_format: 'mp3',
+      }),
       signal: opts.signal ?? AbortSignal.timeout(60_000),
     });
     if (!res.ok) throw new JarvisError('PROVIDER_ERROR', `${this.id} synthesis failed: ${res.status}`);
@@ -223,7 +278,9 @@ export class VoiceLanguageManager {
   }
 
   all(): Array<LanguageDescriptor & VoiceLanguageConfig> {
-    return this.registry.list().map((l) => ({ ...l, ...(this.configs.get(l.code) ?? { code: l.code, enabled: false }) }));
+    return this.registry
+      .list()
+      .map((l) => ({ ...l, ...(this.configs.get(l.code) ?? { code: l.code, enabled: false }) }));
   }
 }
 
@@ -234,10 +291,18 @@ export class SpeechRouter {
     return this.stt.filter((p) => p.isConfigured());
   }
 
-  async transcribe(audio: Buffer, opts: { mimeType: string; languageHint?: string; signal?: AbortSignal }): Promise<Transcript> {
-    const ps = this.available().filter((p) => p.id !== 'openrouter-audio' || /wav|mpeg|mp3/.test(opts.mimeType));
+  async transcribe(
+    audio: Buffer,
+    opts: { mimeType: string; languageHint?: string; signal?: AbortSignal },
+  ): Promise<Transcript> {
+    const ps = this.available().filter(
+      (p) => p.id !== 'openrouter-audio' || /wav|mpeg|mp3/.test(opts.mimeType),
+    );
     if (!ps.length)
-      throw new JarvisError('NOT_CONFIGURED', 'No speech-to-text provider configured. Add an OpenRouter key (audio-capable model) or a Whisper-compatible STT key in Settings.');
+      throw new JarvisError(
+        'NOT_CONFIGURED',
+        'No speech-to-text provider configured. Add an OpenRouter key (audio-capable model) or a Whisper-compatible STT key in Settings.',
+      );
     let last: unknown;
     for (const p of ps) {
       try {

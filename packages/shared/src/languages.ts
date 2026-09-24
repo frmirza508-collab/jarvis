@@ -17,9 +17,33 @@ export interface LanguageDescriptor {
 }
 
 export const INITIAL_LANGUAGES: LanguageDescriptor[] = [
-  { tag: 'en-US', code: 'en', name: 'English', nativeName: 'English', direction: 'ltr', script: 'Latn', builtIn: true },
-  { tag: 'ur-PK', code: 'ur', name: 'Urdu', nativeName: 'اردو', direction: 'rtl', script: 'Arab', builtIn: true },
-  { tag: 'zh-CN', code: 'zh', name: 'Mandarin Chinese', nativeName: '普通话', direction: 'ltr', script: 'Hans', builtIn: true },
+  {
+    tag: 'en-US',
+    code: 'en',
+    name: 'English',
+    nativeName: 'English',
+    direction: 'ltr',
+    script: 'Latn',
+    builtIn: true,
+  },
+  {
+    tag: 'ur-PK',
+    code: 'ur',
+    name: 'Urdu',
+    nativeName: 'اردو',
+    direction: 'rtl',
+    script: 'Arab',
+    builtIn: true,
+  },
+  {
+    tag: 'zh-CN',
+    code: 'zh',
+    name: 'Mandarin Chinese',
+    nativeName: '普通话',
+    direction: 'ltr',
+    script: 'Hans',
+    builtIn: true,
+  },
 ];
 
 export class LanguageRegistry {

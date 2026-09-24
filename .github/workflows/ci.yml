@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Lint, typecheck and tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: jarvis
+          POSTGRES_PASSWORD: jarvis
+          POSTGRES_DB: jarvis_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U jarvis" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://jarvis:jarvis@127.0.0.1:5432/jarvis_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm format:check
+      - name: Typecheck and build apps
+        run: |
+          pnpm --filter @jarvis/desktop build
+          pnpm --filter @jarvis/admin build
+          pnpm --filter @jarvis/license-api build
+          node services/orchestrator/scripts/build.mjs
+      - name: Install Chromium for e2e tests
+        run: pnpm --filter @jarvis/tests exec playwright-core install --with-deps chromium
+      - run: pnpm test
+
+  rust:
+    name: Desktop shell (cargo check, Windows target)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-gnu
+          components: clippy
+      - run: sudo apt-get update && sudo apt-get install -y mingw-w64
+      - name: Placeholder frontend and sidecar for tauri-build
+        run: |
+          mkdir -p apps/desktop/dist apps/desktop/src-tauri/binaries
+          echo '<!doctype html>' > apps/desktop/dist/index.html
+          touch apps/desktop/src-tauri/binaries/jarvis-core-x86_64-pc-windows-gnu.exe
+      - run: cargo clippy --release --target x86_64-pc-windows-gnu -- -D warnings
+        working-directory: apps/desktop/src-tauri
+
+  windows-installer:
+    name: Windows installer
+    runs-on: windows-latest
+    needs: checks
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+      - run: pnpm install --frozen-lockfile
+      - name: Ensure NSIS
+        shell: pwsh
+        run: if (-not (Get-Command makensis -ErrorAction SilentlyContinue)) { choco install nsis -y; echo "C:\Program Files (x86)\NSIS" >> $env:GITHUB_PATH }
+      - name: Build installer
+        shell: pwsh
+        env:
+          JARVIS_LICENSE_PUBLIC_KEY: ${{ secrets.JARVIS_LICENSE_PUBLIC_KEY }}
+          JARVIS_LICENSE_API_URL: ${{ vars.JARVIS_LICENSE_API_URL }}
+          VITE_ACCOUNT_URL: ${{ vars.VITE_ACCOUNT_URL }}
+        run: |
+          if ($env:JARVIS_LICENSE_PUBLIC_KEY -and $env:JARVIS_LICENSE_API_URL) { pnpm package:windows } else { pnpm package:windows --dev }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jarvis-windows-installer
+          path: |
+            dist/windows/*.exe
+            dist/windows/*.sha256

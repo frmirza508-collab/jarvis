@@ -19,18 +19,33 @@ const MAX_OUTPUT = 200_000;
 
 function shellFor(platform = process.platform): { file: string; args: (cmd: string) => string[] } {
   if (platform === 'win32') {
-    return { file: 'powershell.exe', args: (cmd) => ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', cmd] };
+    return {
+      file: 'powershell.exe',
+      args: (cmd) => [
+        '-NoLogo',
+        '-NoProfile',
+        '-NonInteractive',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-Command',
+        cmd,
+      ],
+    };
   }
   return { file: '/bin/bash', args: (cmd) => ['-lc', cmd] };
 }
 
 /** Runs a command with timeout, output caps, cancellation and a scrubbed environment. */
-export function runCommand(command: string, opts: { cwd: string; timeoutMs?: number; signal?: AbortSignal; env?: Record<string, string> }): Promise<RunResult> {
+export function runCommand(
+  command: string,
+  opts: { cwd: string; timeoutMs?: number; signal?: AbortSignal; env?: Record<string, string> },
+): Promise<RunResult> {
   const sh = shellFor();
   const started = Date.now();
   // Never leak JARVIS's own secrets into child processes.
   const env: NodeJS.ProcessEnv = { ...process.env, ...opts.env };
-  for (const k of Object.keys(env)) if (/^(JARVIS_|OPENROUTER_|LICENSE_|STRIPE_|DATABASE_URL)/.test(k)) delete env[k];
+  for (const k of Object.keys(env))
+    if (/^(JARVIS_|OPENROUTER_|LICENSE_|STRIPE_|DATABASE_URL)/.test(k)) delete env[k];
   return new Promise((resolve, reject) => {
     const child = spawn(sh.file, sh.args(command), { cwd: opts.cwd, env, windowsHide: true });
     let stdout = '';
@@ -75,15 +90,27 @@ export function terminalTools(): ToolDefinition[] {
     defineTool({
       id: 'shell.run',
       title: 'Run command',
-      description: 'Run a shell command (PowerShell on Windows, bash elsewhere) and return exit code and output. Dangerous commands are blocked or require confirmation.',
+      description:
+        'Run a shell command (PowerShell on Windows, bash elsewhere) and return exit code and output. Dangerous commands are blocked or require confirmation.',
       module: 'terminal',
       categories: ['EXECUTE'],
-      input: z.object({ command: z.string().min(1).max(8000), cwd: z.string().optional(), timeoutMs: z.number().int().positive().max(1_800_000).optional() }),
+      input: z.object({
+        command: z.string().min(1).max(8000),
+        cwd: z.string().optional(),
+        timeoutMs: z.number().int().positive().max(1_800_000).optional(),
+      }),
       assess: (i, ctx) => {
         const a = assessCommand(i.command);
-        return { risk: a.risk === 'low' ? 'medium' : a.risk, blocked: a.blocked, reasons: a.reasons, target: cwdOf(i, ctx.workspace), description: `Run: ${i.command}${a.reasons.length ? ` (${a.reasons.join(', ')})` : ''}` };
+        return {
+          risk: a.risk === 'low' ? 'medium' : a.risk,
+          blocked: a.blocked,
+          reasons: a.reasons,
+          target: cwdOf(i, ctx.workspace),
+          description: `Run: ${i.command}${a.reasons.length ? ` (${a.reasons.join(', ')})` : ''}`,
+        };
       },
-      execute: (i, ctx) => runCommand(i.command, { cwd: cwdOf(i, ctx.workspace), timeoutMs: i.timeoutMs, signal: ctx.signal }),
+      execute: (i, ctx) =>
+        runCommand(i.command, { cwd: cwdOf(i, ctx.workspace), timeoutMs: i.timeoutMs, signal: ctx.signal }),
     }),
     defineTool({
       id: 'git.status',
@@ -98,7 +125,8 @@ export function terminalTools(): ToolDefinition[] {
           runCommand('git status --short --branch', { cwd, timeoutMs: 30_000 }),
           runCommand('git log --oneline -n 10', { cwd, timeoutMs: 30_000 }),
         ]);
-        if (status.exitCode !== 0) throw new JarvisError('INVALID_INPUT', status.stderr || 'Not a git repository');
+        if (status.exitCode !== 0)
+          throw new JarvisError('INVALID_INPUT', status.stderr || 'Not a git repository');
         return { status: status.stdout, recentCommits: log.stdout };
       },
     }),
@@ -110,7 +138,10 @@ export function terminalTools(): ToolDefinition[] {
       categories: ['READ'],
       input: z.object({ cwd: z.string().optional(), staged: z.boolean().optional() }),
       execute: async (i, ctx) => {
-        const r = await runCommand(`git diff ${i.staged ? '--staged' : ''} --stat --patch`, { cwd: cwdOf(i, ctx.workspace), timeoutMs: 30_000 });
+        const r = await runCommand(`git diff ${i.staged ? '--staged' : ''} --stat --patch`, {
+          cwd: cwdOf(i, ctx.workspace),
+          timeoutMs: 30_000,
+        });
         if (r.exitCode !== 0) throw new JarvisError('INVALID_INPUT', r.stderr);
         return { diff: r.stdout };
       },

@@ -33,10 +33,20 @@ export class BraveSearchProvider implements SearchProvider {
     const u = new URL('https://api.search.brave.com/res/v1/web/search');
     u.searchParams.set('q', query);
     u.searchParams.set('count', String(Math.min(20, opts.count ?? 8)));
-    const res = await this.f(u, { headers: { Accept: 'application/json', 'X-Subscription-Token': key }, signal: opts.signal ?? AbortSignal.timeout(20_000) });
+    const res = await this.f(u, {
+      headers: { Accept: 'application/json', 'X-Subscription-Token': key },
+      signal: opts.signal ?? AbortSignal.timeout(20_000),
+    });
     if (!res.ok) throw new JarvisError('PROVIDER_ERROR', `Brave search failed: ${res.status}`);
-    const j = (await res.json()) as { web?: { results?: Array<{ title: string; url: string; description?: string }> } };
-    return (j.web?.results ?? []).map((r) => ({ title: r.title, url: r.url, snippet: stripTags(r.description ?? ''), source: 'brave' }));
+    const j = (await res.json()) as {
+      web?: { results?: Array<{ title: string; url: string; description?: string }> };
+    };
+    return (j.web?.results ?? []).map((r) => ({
+      title: r.title,
+      url: r.url,
+      snippet: stripTags(r.description ?? ''),
+      source: 'brave',
+    }));
   }
 }
 
@@ -61,7 +71,12 @@ export class TavilySearchProvider implements SearchProvider {
     });
     if (!res.ok) throw new JarvisError('PROVIDER_ERROR', `Tavily search failed: ${res.status}`);
     const j = (await res.json()) as { results?: Array<{ title: string; url: string; content?: string }> };
-    return (j.results ?? []).map((r) => ({ title: r.title, url: r.url, snippet: r.content ?? '', source: 'tavily' }));
+    return (j.results ?? []).map((r) => ({
+      title: r.title,
+      url: r.url,
+      snippet: r.content ?? '',
+      source: 'tavily',
+    }));
   }
 }
 
@@ -94,15 +109,34 @@ export interface FetchedPage {
   forModel: string;
 }
 
-export async function fetchPage(url: string, f: typeof fetch = fetch, maxChars = 50_000): Promise<FetchedPage> {
+export async function fetchPage(
+  url: string,
+  f: typeof fetch = fetch,
+  maxChars = 50_000,
+): Promise<FetchedPage> {
   const safe = assertSafeUrl(url);
-  const res = await f(safe, { headers: { 'User-Agent': 'JARVIS-Research/0.1 (+desktop assistant)', Accept: 'text/html,text/plain;q=0.9,*/*;q=0.5' }, redirect: 'follow', signal: AbortSignal.timeout(30_000) });
+  const res = await f(safe, {
+    headers: {
+      'User-Agent': 'JARVIS-Research/0.1 (+desktop assistant)',
+      Accept: 'text/html,text/plain;q=0.9,*/*;q=0.5',
+    },
+    redirect: 'follow',
+    signal: AbortSignal.timeout(30_000),
+  });
   const ct = res.headers.get('content-type') ?? '';
-  if (!/text|html|json|xml/.test(ct)) throw new JarvisError('INVALID_INPUT', `Unsupported content type ${ct}`);
+  if (!/text|html|json|xml/.test(ct))
+    throw new JarvisError('INVALID_INPUT', `Unsupported content type ${ct}`);
   const raw = (await res.text()).slice(0, 2_000_000);
   const title = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(raw)?.[1]?.trim() ?? '';
   const text = (/html/.test(ct) ? stripTags(raw) : raw).slice(0, maxChars);
-  return { url: res.url || safe, status: res.status, title: stripTags(title), text, injection: scanForInjection(text), forModel: wrapUntrusted(res.url || safe, text) };
+  return {
+    url: res.url || safe,
+    status: res.status,
+    title: stripTags(title),
+    text,
+    injection: scanForInjection(text),
+    forModel: wrapUntrusted(res.url || safe, text),
+  };
 }
 
 export class SearchRouter {
@@ -112,7 +146,11 @@ export class SearchRouter {
   }
   async search(query: string, count = 8): Promise<SearchResult[]> {
     const ps = this.available();
-    if (!ps.length) throw new JarvisError('NOT_CONFIGURED', 'No web search provider configured (set BRAVE_SEARCH_API_KEY or TAVILY_API_KEY).');
+    if (!ps.length)
+      throw new JarvisError(
+        'NOT_CONFIGURED',
+        'No web search provider configured (set BRAVE_SEARCH_API_KEY or TAVILY_API_KEY).',
+      );
     let last: unknown;
     for (const p of ps) {
       try {
@@ -135,7 +173,8 @@ export function researchTools(router: SearchRouter, f: typeof fetch = fetch): To
       categories: ['NETWORK'],
       input: z.object({ query: z.string().min(2), count: z.number().int().min(1).max(20).optional() }),
       status: () => (router.available().length ? 'active' : 'not_configured'),
-      statusReason: () => (router.available().length ? undefined : 'Configure BRAVE_SEARCH_API_KEY or TAVILY_API_KEY'),
+      statusReason: () =>
+        router.available().length ? undefined : 'Configure BRAVE_SEARCH_API_KEY or TAVILY_API_KEY',
       execute: (i) => router.search(i.query, i.count),
     }),
     defineTool({
@@ -144,7 +183,10 @@ export function researchTools(router: SearchRouter, f: typeof fetch = fetch): To
       description: 'Fetch a web page over HTTP and return its readable text (untrusted content).',
       module: 'web-research',
       categories: ['NETWORK'],
-      input: z.object({ url: z.string().min(4), maxChars: z.number().int().positive().max(200_000).optional() }),
+      input: z.object({
+        url: z.string().min(4),
+        maxChars: z.number().int().positive().max(200_000).optional(),
+      }),
       assess: (i) => ({ risk: 'low', target: assertSafeUrl(i.url) }),
       execute: (i) => fetchPage(i.url, f, i.maxChars),
     }),
@@ -184,19 +226,27 @@ export function extractPageMeta(html: string, url: string, status: number, respo
     const p = attr(m, 'property');
     if (p?.startsWith('og:')) og[p] = attr(m, 'content') ?? '';
   }
-  const heads = (lvl: number) => [...html.matchAll(new RegExp(`<h${lvl}\\b[^>]*>([\\s\\S]*?)</h${lvl}>`, 'gi'))].map((m) => stripTags(m[1] ?? '')).filter(Boolean);
+  const heads = (lvl: number) =>
+    [...html.matchAll(new RegExp(`<h${lvl}\\b[^>]*>([\\s\\S]*?)</h${lvl}>`, 'gi'))]
+      .map((m) => stripTags(m[1] ?? ''))
+      .filter(Boolean);
   const imgs = html.match(/<img\b[^>]*>/gi) ?? [];
   let internal = 0;
   let external = 0;
   for (const m of html.matchAll(/<a\b[^>]*href\s*=\s*["']([^"'#]+)["']/gi)) {
     try {
       const u = new URL(m[1]!, url);
-      if (u.protocol.startsWith('http')) u.host === host ? internal++ : external++;
+      if (u.protocol.startsWith('http')) {
+        if (u.host === host) internal++;
+        else external++;
+      }
     } catch {
       /* ignore */
     }
   }
-  const canonicalTag = (html.match(/<link\b[^>]*>/gi) ?? []).find((l) => attr(l, 'rel')?.toLowerCase() === 'canonical');
+  const canonicalTag = (html.match(/<link\b[^>]*>/gi) ?? []).find(
+    (l) => attr(l, 'rel')?.toLowerCase() === 'canonical',
+  );
   return {
     url,
     status,
@@ -221,7 +271,8 @@ export function pageMetaTool(f: typeof fetch = fetch): ToolDefinition {
   return defineTool({
     id: 'web.page_meta',
     title: 'Page SEO metadata',
-    description: 'Fetch a URL and extract SEO metadata: title, meta description, headings, links, image alt coverage, Open Graph.',
+    description:
+      'Fetch a URL and extract SEO metadata: title, meta description, headings, links, image alt coverage, Open Graph.',
     module: 'web-research',
     categories: ['NETWORK'],
     input: z.object({ url: z.string().min(4) }),
@@ -229,7 +280,11 @@ export function pageMetaTool(f: typeof fetch = fetch): ToolDefinition {
     execute: async (i) => {
       const safe = assertSafeUrl(i.url);
       const t0 = Date.now();
-      const res = await f(safe, { headers: { 'User-Agent': 'JARVIS-SEO/0.1' }, redirect: 'follow', signal: AbortSignal.timeout(30_000) });
+      const res = await f(safe, {
+        headers: { 'User-Agent': 'JARVIS-SEO/0.1' },
+        redirect: 'follow',
+        signal: AbortSignal.timeout(30_000),
+      });
       const html = (await res.text()).slice(0, 3_000_000);
       return extractPageMeta(html, res.url || safe, res.status, Date.now() - t0);
     },

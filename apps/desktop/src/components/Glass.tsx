@@ -1,7 +1,19 @@
 import type { ReactNode } from 'react';
 
 /** Floating holographic glass panel (dense info stays readable in 2D). */
-export function Glass({ title, children, className = '', actions, tilt = 'none' }: { title?: string; children: ReactNode; className?: string; actions?: ReactNode; tilt?: 'left' | 'right' | 'none' }) {
+export function Glass({
+  title,
+  children,
+  className = '',
+  actions,
+  tilt = 'none',
+}: {
+  title?: string;
+  children: ReactNode;
+  className?: string;
+  actions?: ReactNode;
+  tilt?: 'left' | 'right' | 'none';
+}) {
   return (
     <section className={`glass tilt-${tilt} ${className}`} aria-label={title}>
       {title && (

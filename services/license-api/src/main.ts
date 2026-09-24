@@ -7,7 +7,11 @@ import { buildApp } from './app.js';
 
 function migrationsDir(): string {
   const here = path.dirname(fileURLToPath(import.meta.url));
-  const candidates = [process.env.MIGRATIONS_DIR, path.resolve(here, '../../../infra/database/migrations'), path.resolve(here, 'migrations')].filter(Boolean) as string[];
+  const candidates = [
+    process.env.MIGRATIONS_DIR,
+    path.resolve(here, '../../../infra/database/migrations'),
+    path.resolve(here, 'migrations'),
+  ].filter(Boolean) as string[];
   const found = candidates.find((c) => existsSync(c));
   if (!found) throw new Error('Migrations directory not found; set MIGRATIONS_DIR');
   return found;

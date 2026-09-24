@@ -1,7 +1,28 @@
 import { useSyncExternalStore } from 'react';
-import type { AgentEvent, AgentInfo, AuditEntry, CoreStatus, LicenseStatus, NodeState, PermissionRequest, RequestResult, ServerMessage } from './types';
+import type {
+  AgentEvent,
+  AgentInfo,
+  AuditEntry,
+  CoreStatus,
+  LicenseStatus,
+  NodeState,
+  PermissionRequest,
+  RequestResult,
+  ServerMessage,
+} from './types';
 
-export type ViewId = 'command' | 'agents' | 'tasks' | 'departments' | 'modules' | 'voice' | 'memory' | 'system' | 'settings' | 'account' | 'activity';
+export type ViewId =
+  | 'command'
+  | 'agents'
+  | 'tasks'
+  | 'departments'
+  | 'modules'
+  | 'voice'
+  | 'memory'
+  | 'system'
+  | 'settings'
+  | 'account'
+  | 'activity';
 
 export interface ChatMessage {
   id: string;
@@ -54,7 +75,11 @@ export interface AppState {
   view: ViewId;
   selectedAgent?: string;
   selectedDepartment?: string;
-  voice: { state: 'idle' | 'listening' | 'transcribing' | 'thinking' | 'speaking'; level: number; lastLanguage?: string };
+  voice: {
+    state: 'idle' | 'listening' | 'transcribing' | 'thinking' | 'speaking';
+    level: number;
+    lastLanguage?: string;
+  };
   prefs: Prefs;
   fps: number;
   rendererKind?: 'webgpu' | 'webgl';
@@ -63,7 +88,14 @@ export interface AppState {
 const PREFS_KEY = 'jarvis.prefs.v1';
 function loadPrefs(): Prefs {
   const reduced = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const d: Prefs = { quality: 'high', reducedMotion: reduced, renderer: 'auto', voiceLanguage: 'auto', speakReplies: true, handsFree: false };
+  const d: Prefs = {
+    quality: 'high',
+    reducedMotion: reduced,
+    renderer: 'auto',
+    voiceLanguage: 'auto',
+    speakReplies: true,
+    handsFree: false,
+  };
   try {
     return { ...d, ...(JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}') as Partial<Prefs>) };
   } catch {
@@ -117,7 +149,10 @@ let noticeSeq = 0;
 export function notify(level: Notice['level'], text: string): void {
   const n: Notice = { id: `n${++noticeSeq}`, level, text, ts: Date.now() };
   setState((s) => ({ notices: [...s.notices.slice(-4), n] }));
-  setTimeout(() => setState((s) => ({ notices: s.notices.filter((x) => x.id !== n.id) })), level === 'error' ? 9000 : 5000);
+  setTimeout(
+    () => setState((s) => ({ notices: s.notices.filter((x) => x.id !== n.id) })),
+    level === 'error' ? 9000 : 5000,
+  );
 }
 
 /** Results/errors that arrived before the UI registered the request (fast replies race the HTTP response). */
@@ -127,7 +162,8 @@ export function takeEarly(requestId: string): ServerMessage | undefined {
   early.delete(requestId);
   return m;
 }
-const hasPending = (requestId: string) => state.messages.some((x) => x.requestId === requestId && x.role === 'jarvis');
+const hasPending = (requestId: string) =>
+  state.messages.some((x) => x.requestId === requestId && x.role === 'jarvis');
 
 function rootRequestId(taskId: string): string {
   return taskId.split(':')[0]!;
@@ -152,7 +188,17 @@ export function applyServerMessage(m: ServerMessage): void {
       setState((s) => {
         const cur = s.agents[m.agent.id];
         if (!cur) return {};
-        return { agents: { ...s.agents, [m.agent.id]: { ...cur, health: m.agent.health, metrics: m.agent.metrics, activeTasks: m.agent.activeTasks } } };
+        return {
+          agents: {
+            ...s.agents,
+            [m.agent.id]: {
+              ...cur,
+              health: m.agent.health,
+              metrics: m.agent.metrics,
+              activeTasks: m.agent.activeTasks,
+            },
+          },
+        };
       });
       break;
     case 'license':
@@ -165,9 +211,34 @@ export function applyServerMessage(m: ServerMessage): void {
         const live = s.live[rid];
         const patch: Partial<AppState> = { events: [...s.events.slice(-499), e] };
         if (live) {
-          const msg = e.type === 'TASK_PROGRESS' ? String(e.payload.message) : e.type === 'TASK_FAILED' ? `failed: ${String(e.payload.error)}` : e.type === 'BLOCKED' ? `blocked: ${String(e.payload.reason)}` : e.type === 'REVIEW_RESULT' ? (e.payload.approved ? 'review approved' : `review: ${(e.payload.issues as string[]).join('; ')}`) : e.type === 'TASK_ACCEPTED' ? 'accepted' : undefined;
-          const agents = e.from !== 'user' && e.from !== 'orchestrator' && !live.agents.includes(e.from) ? [...live.agents, e.from] : live.agents;
-          patch.live = { ...s.live, [rid]: { ...live, agents, progress: msg ? [...live.progress.slice(-80), { ts: Date.now(), from: e.from, message: msg }] : live.progress } };
+          const msg =
+            e.type === 'TASK_PROGRESS'
+              ? String(e.payload.message)
+              : e.type === 'TASK_FAILED'
+                ? `failed: ${String(e.payload.error)}`
+                : e.type === 'BLOCKED'
+                  ? `blocked: ${String(e.payload.reason)}`
+                  : e.type === 'REVIEW_RESULT'
+                    ? e.payload.approved
+                      ? 'review approved'
+                      : `review: ${(e.payload.issues as string[]).join('; ')}`
+                    : e.type === 'TASK_ACCEPTED'
+                      ? 'accepted'
+                      : undefined;
+          const agents =
+            e.from !== 'user' && e.from !== 'orchestrator' && !live.agents.includes(e.from)
+              ? [...live.agents, e.from]
+              : live.agents;
+          patch.live = {
+            ...s.live,
+            [rid]: {
+              ...live,
+              agents,
+              progress: msg
+                ? [...live.progress.slice(-80), { ts: Date.now(), from: e.from, message: msg }]
+                : live.progress,
+            },
+          };
         }
         return patch;
       });
@@ -183,7 +254,11 @@ export function applyServerMessage(m: ServerMessage): void {
         const { [r.requestId]: _done, ...rest } = s.live;
         return {
           live: rest,
-          messages: s.messages.map((x) => (x.requestId === r.requestId && x.role === 'jarvis' ? { ...x, text: r.reply, status: 'done', result: r, language: r.language } : x)),
+          messages: s.messages.map((x) =>
+            x.requestId === r.requestId && x.role === 'jarvis'
+              ? { ...x, text: r.reply, status: 'done', result: r, language: r.language }
+              : x,
+          ),
         };
       });
       window.dispatchEvent(new CustomEvent('jarvis-reply', { detail: r }));
@@ -198,7 +273,11 @@ export function applyServerMessage(m: ServerMessage): void {
         const { [m.requestId]: _gone, ...rest } = s.live;
         return {
           live: rest,
-          messages: s.messages.map((x) => (x.requestId === m.requestId && x.role === 'jarvis' ? { ...x, text: m.message, status: m.code === 'CANCELLED' ? 'cancelled' : 'error' } : x)),
+          messages: s.messages.map((x) =>
+            x.requestId === m.requestId && x.role === 'jarvis'
+              ? { ...x, text: m.message, status: m.code === 'CANCELLED' ? 'cancelled' : 'error' }
+              : x,
+          ),
         };
       });
       if (m.code !== 'CANCELLED') notify('error', m.message);
@@ -207,7 +286,11 @@ export function applyServerMessage(m: ServerMessage): void {
 }
 
 /** Graph and reply-delta stream (not part of ServerMessage union for brevity). */
-export function applyLiveMessage(m: { kind: 'graph'; requestId: string; event: { kind: string; node?: NodeState } } | { kind: 'delta'; requestId: string; text: string }): void {
+export function applyLiveMessage(
+  m:
+    | { kind: 'graph'; requestId: string; event: { kind: string; node?: NodeState } }
+    | { kind: 'delta'; requestId: string; text: string },
+): void {
   if (m.kind === 'graph' && m.event.kind === 'node' && m.event.node) {
     const node = m.event.node;
     setState((s) => {
@@ -216,6 +299,12 @@ export function applyLiveMessage(m: { kind: 'graph'; requestId: string; event: {
       return { live: { ...s.live, [m.requestId]: { ...live, nodes: { ...live.nodes, [node.id]: node } } } };
     });
   } else if (m.kind === 'delta') {
-    setState((s) => ({ messages: s.messages.map((x) => (x.requestId === m.requestId && x.role === 'jarvis' && x.status === 'pending' ? { ...x, text: (x.text === '…' ? '' : x.text) + m.text } : x)) }));
+    setState((s) => ({
+      messages: s.messages.map((x) =>
+        x.requestId === m.requestId && x.role === 'jarvis' && x.status === 'pending'
+          ? { ...x, text: (x.text === '…' ? '' : x.text) + m.text }
+          : x,
+      ),
+    }));
   }
 }

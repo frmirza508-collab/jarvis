@@ -4,7 +4,13 @@ import * as THREE from 'three';
 import { useStore } from '../lib/store';
 import { voiceEngine } from '../voice-ui/voice-controller';
 
-const STATE_COLORS: Record<string, string> = { idle: '#37c6ff', listening: '#5cffc8', transcribing: '#ffe066', thinking: '#c7a6ff', speaking: '#ffffff' };
+const STATE_COLORS: Record<string, string> = {
+  idle: '#37c6ff',
+  listening: '#5cffc8',
+  transcribing: '#ffe066',
+  thinking: '#c7a6ff',
+  speaking: '#ffffff',
+};
 
 /** Central JARVIS core: layered energy shells, orbiting rings and a voice field. */
 export function JarvisCore({ busy }: { busy: boolean }) {
@@ -27,7 +33,10 @@ export function JarvisCore({ busy }: { busy: boolean }) {
       (shell.current.material as THREE.MeshBasicMaterial).color.lerp(color, 0.08);
     }
     if (inner.current) (inner.current.material as THREE.MeshStandardMaterial).emissive.lerp(color, 0.08);
-    if (rings.current) rings.current.children.forEach((r, i) => (r.rotation.z += dt * (0.3 + i * 0.15) * (busy ? 2.5 : 1) * speed * (i % 2 ? -1 : 1)));
+    if (rings.current)
+      rings.current.children.forEach(
+        (r, i) => (r.rotation.z += dt * (0.3 + i * 0.15) * (busy ? 2.5 : 1) * speed * (i % 2 ? -1 : 1)),
+      );
     if (group.current && !reduced) group.current.position.y = Math.sin(t * 0.8) * 0.08;
   });
 
@@ -35,7 +44,13 @@ export function JarvisCore({ busy }: { busy: boolean }) {
     <group ref={group}>
       <mesh ref={inner}>
         <icosahedronGeometry args={[0.9, 5]} />
-        <meshStandardMaterial color="#0a1a33" emissive="#37c6ff" emissiveIntensity={1.6} roughness={0.25} metalness={0.4} />
+        <meshStandardMaterial
+          color="#0a1a33"
+          emissive="#37c6ff"
+          emissiveIntensity={1.6}
+          roughness={0.25}
+          metalness={0.4}
+        />
       </mesh>
       <mesh ref={shell}>
         <icosahedronGeometry args={[1.35, 2]} />
@@ -43,13 +58,24 @@ export function JarvisCore({ busy }: { busy: boolean }) {
       </mesh>
       <mesh>
         <sphereGeometry args={[1.8, 32, 32]} />
-        <meshBasicMaterial color="#1b6dff" transparent opacity={0.06} depthWrite={false} blending={THREE.AdditiveBlending} />
+        <meshBasicMaterial
+          color="#1b6dff"
+          transparent
+          opacity={0.06}
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+        />
       </mesh>
       <group ref={rings}>
         {[2.1, 2.5, 2.9].map((r, i) => (
           <mesh key={r} rotation={[Math.PI / 2 + i * 0.35, i * 0.6, 0]}>
             <torusGeometry args={[r, 0.012, 8, 160]} />
-            <meshBasicMaterial color={i === 1 ? '#7fe3ff' : '#37c6ff'} transparent opacity={0.55} blending={THREE.AdditiveBlending} />
+            <meshBasicMaterial
+              color={i === 1 ? '#7fe3ff' : '#37c6ff'}
+              transparent
+              opacity={0.55}
+              blending={THREE.AdditiveBlending}
+            />
           </mesh>
         ))}
       </group>
@@ -97,7 +123,14 @@ export function EnergyParticles({ count, busy }: { count: number; busy: boolean 
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const reduced = useStore((s) => s.prefs.reducedMotion);
   const seeds = useMemo(
-    () => Array.from({ length: count }, () => ({ r: 2.6 + Math.random() * 9, a: Math.random() * Math.PI * 2, y: (Math.random() - 0.5) * 5, s: 0.02 + Math.random() * 0.08, size: 0.01 + Math.random() * 0.03 })),
+    () =>
+      Array.from({ length: count }, () => ({
+        r: 2.6 + Math.random() * 9,
+        a: Math.random() * Math.PI * 2,
+        y: (Math.random() - 0.5) * 5,
+        s: 0.02 + Math.random() * 0.08,
+        size: 0.01 + Math.random() * 0.03,
+      })),
     [count],
   );
   useFrame((_, dt) => {
@@ -115,7 +148,13 @@ export function EnergyParticles({ count, busy }: { count: number; busy: boolean 
   return (
     <instancedMesh ref={mesh} args={[undefined, undefined, count]}>
       <octahedronGeometry args={[0.1, 0]} />
-      <meshBasicMaterial color="#6fd8ff" transparent opacity={0.7} blending={THREE.AdditiveBlending} depthWrite={false} />
+      <meshBasicMaterial
+        color="#6fd8ff"
+        transparent
+        opacity={0.7}
+        blending={THREE.AdditiveBlending}
+        depthWrite={false}
+      />
     </instancedMesh>
   );
 }

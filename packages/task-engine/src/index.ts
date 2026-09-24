@@ -106,7 +106,14 @@ export class TaskGraph {
     this.id = opts.id ?? newId('graph');
     for (const n of nodes) {
       this.defs.set(n.id, n);
-      this.states.set(n.id, { id: n.id, label: n.label, assignee: n.assignee, dependsOn: n.dependsOn, status: 'pending', attempts: 0 });
+      this.states.set(n.id, {
+        id: n.id,
+        label: n.label,
+        assignee: n.assignee,
+        dependsOn: n.dependsOn,
+        status: 'pending',
+        attempts: 0,
+      });
     }
   }
 
@@ -198,8 +205,16 @@ export class TaskGraph {
     for (const s of this.states.values())
       if (!isTerminal(s.status)) this.set(s.id, { status: signal.aborted ? 'cancelled' : 'skipped' });
 
-    const status: GraphResult['status'] = signal.aborted ? 'cancelled' : failedRequired ? 'failed' : 'succeeded';
+    const status: GraphResult['status'] = signal.aborted
+      ? 'cancelled'
+      : failedRequired
+        ? 'failed'
+        : 'succeeded';
     this.opts.onEvent?.({ kind: 'graph', graphId: this.id, status });
-    return { graphId: this.id, status, nodes: Object.fromEntries([...this.states].map(([k, v]) => [k, { ...v }])) };
+    return {
+      graphId: this.id,
+      status,
+      nodes: Object.fromEntries([...this.states].map(([k, v]) => [k, { ...v }])),
+    };
   }
 }

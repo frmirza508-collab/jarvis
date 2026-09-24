@@ -11,7 +11,7 @@ export const summariseFolder = defineSkill({
   name: 'Summarise folder',
   description: 'Read text files in a folder and write a summary report.',
   category: 'office',
-  tools: ['fs.list', 'fs.read', 'fs.write'],   // the ONLY tools this skill may call
+  tools: ['fs.list', 'fs.read', 'fs.write'], // the ONLY tools this skill may call
   usesModel: true,
   input: z.object({ path: z.string(), out: z.string() }),
   run: async (i, ctx) => {
@@ -21,6 +21,7 @@ export const summariseFolder = defineSkill({
   },
 });
 ```
+
 Then add it to `SKILL_CATALOG` in `skills/src/index.ts` and list its id in the `skills` of the agents that should use it.
 
 - Tool calls from a skill still pass through permissions and are audited under the calling agent.

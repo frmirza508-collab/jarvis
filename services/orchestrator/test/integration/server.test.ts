@@ -18,13 +18,31 @@ beforeAll(async () => {
   const ws = mkdtempSync(path.join(os.tmpdir(), 'jarvis-srv-'));
   const sys = (r: ChatRequest) => String(r.messages[0]?.content ?? '');
   const provider = new ScriptedProvider((r) => {
-    if (sys(r).includes('planning core')) return JSON.stringify({ mode: 'delegate', tasks: [{ id: 'w', agent: 'file-operations', goal: 'write hello.txt' }] });
+    if (sys(r).includes('planning core'))
+      return JSON.stringify({
+        mode: 'delegate',
+        tasks: [{ id: 'w', agent: 'file-operations', goal: 'write hello.txt' }],
+      });
     if (sys(r).includes('File Operations Agent'))
-      return r.messages.some((m) => m.role === 'tool') ? 'written' : { toolCalls: [{ id: '1', type: 'function', function: { name: 'fs__delete', arguments: JSON.stringify({ path: 'nothing.txt' }) } }] };
+      return r.messages.some((m) => m.role === 'tool')
+        ? 'written'
+        : {
+            toolCalls: [
+              {
+                id: '1',
+                type: 'function',
+                function: { name: 'fs__delete', arguments: JSON.stringify({ path: 'nothing.txt' }) },
+              },
+            ],
+          };
     if (sys(r).includes('Present ONE')) return 'finished';
     return JSON.stringify({ lesson: null });
   });
-  core = createJarvisCore({ extraProviders: [provider], settings: { workspace: ws }, hooks: { checkEntitlement: () => ({ premium, reason: 'expired' }) } });
+  core = createJarvisCore({
+    extraProviders: [provider],
+    settings: { workspace: ws },
+    hooks: { checkEntitlement: () => ({ premium, reason: 'expired' }) },
+  });
   app = await createServer({ core, token: TOKEN, version: 'test' });
   base = await app.listen({ host: '127.0.0.1', port: 0 });
 });
@@ -34,7 +52,11 @@ afterAll(async () => {
 });
 
 const call = (method: string, url: string, body?: unknown, token = TOKEN) =>
-  fetch(`${base}${url}`, { method, headers: { Authorization: `Bearer ${token}`, ...(body ? { 'Content-Type': 'application/json' } : {}) }, body: body ? JSON.stringify(body) : undefined });
+  fetch(`${base}${url}`, {
+    method,
+    headers: { Authorization: `Bearer ${token}`, ...(body ? { 'Content-Type': 'application/json' } : {}) },
+    body: body ? JSON.stringify(body) : undefined,
+  });
 
 describe('local core API', () => {
   it('requires the session token', async () => {
@@ -44,16 +66,25 @@ describe('local core API', () => {
   });
 
   it('rejects foreign browser origins via CORS', async () => {
-    const r = await fetch(`${base}/status`, { method: 'OPTIONS', headers: { Origin: 'https://evil.example', 'Access-Control-Request-Method': 'GET' } });
+    const r = await fetch(`${base}/status`, {
+      method: 'OPTIONS',
+      headers: { Origin: 'https://evil.example', 'Access-Control-Request-Method': 'GET' },
+    });
     expect(r.headers.get('access-control-allow-origin')).toBeNull();
-    const ok = await fetch(`${base}/status`, { method: 'OPTIONS', headers: { Origin: 'http://tauri.localhost', 'Access-Control-Request-Method': 'GET' } });
+    const ok = await fetch(`${base}/status`, {
+      method: 'OPTIONS',
+      headers: { Origin: 'http://tauri.localhost', 'Access-Control-Request-Method': 'GET' },
+    });
     expect(ok.headers.get('access-control-allow-origin')).toBe('http://tauri.localhost');
   });
 
   it('stores secrets without ever returning values', async () => {
     const put = await call('PUT', '/secrets/BRAVE_SEARCH_API_KEY', { value: 'brave-secret-123456' });
     expect(put.status).toBe(200);
-    const list = (await (await call('GET', '/secrets')).json()) as Array<{ name: string; configured: boolean }>;
+    const list = (await (await call('GET', '/secrets')).json()) as Array<{
+      name: string;
+      configured: boolean;
+    }>;
     expect(list.find((s) => s.name === 'BRAVE_SEARCH_API_KEY')!.configured).toBe(true);
     expect(JSON.stringify(list)).not.toContain('brave-secret');
     expect((await call('PUT', '/secrets/NOT_A_SECRET', { value: '12345678' })).status).toBe(400);
@@ -77,7 +108,10 @@ describe('local core API', () => {
     expect(r.status).toBe(202);
     const { requestId } = (await r.json()) as { requestId: string };
     await expect.poll(() => messages.some((m) => m.kind === 'request.done'), { timeout: 10_000 }).toBe(true);
-    const done = messages.find((m) => m.kind === 'request.done')!.result as { requestId: string; outputs: Record<string, { summary: string }> };
+    const done = messages.find((m) => m.kind === 'request.done')!.result as {
+      requestId: string;
+      outputs: Record<string, { summary: string }>;
+    };
     expect(done.requestId).toBe(requestId);
     expect(messages.some((m) => m.kind === 'permission.resolved' && m.decision === 'deny')).toBe(true);
     expect(messages.some((m) => m.kind === 'bus')).toBe(true);
@@ -103,7 +137,9 @@ describe('local core API', () => {
 
   it('never lets policy auto-allow DESTRUCTIVE', async () => {
     const policy = (await (await call('GET', '/permissions/policy')).json()) as Record<string, unknown>;
-    const r = (await (await call('PUT', '/permissions/policy', { ...policy, autoAllow: ['READ', 'DESTRUCTIVE'] })).json()) as { autoAllow: string[] };
+    const r = (await (
+      await call('PUT', '/permissions/policy', { ...policy, autoAllow: ['READ', 'DESTRUCTIVE'] })
+    ).json()) as { autoAllow: string[] };
     expect(r.autoAllow).toEqual(['READ']);
   });
 

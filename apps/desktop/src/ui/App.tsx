@@ -40,8 +40,23 @@ function StatusBar() {
   return (
     <footer className="statusbar" aria-label="System status">
       <span className={`dot ${connection}`} /> core {connection}
-      <span>· models <b className={`st-${model?.state}`}>{model?.state?.replace('_', ' ') ?? '—'}</b></span>
-      <span>· license <b className={license?.premium ? 'st-active' : 'st-not_configured'}>{license ? (license.mode === 'development' ? (license.premium ? 'development' : 'not configured') : license.premium ? (license.plan ?? 'active') : (license.status ?? 'inactive')) : '—'}</b></span>
+      <span>
+        · models <b className={`st-${model?.state}`}>{model?.state?.replace('_', ' ') ?? '—'}</b>
+      </span>
+      <span>
+        · license{' '}
+        <b className={license?.premium ? 'st-active' : 'st-not_configured'}>
+          {license
+            ? license.mode === 'development'
+              ? license.premium
+                ? 'development'
+                : 'not configured'
+              : license.premium
+                ? (license.plan ?? 'active')
+                : (license.status ?? 'inactive')
+            : '—'}
+        </b>
+      </span>
       <span>· {status?.agents.total ?? 0} agents</span>
       <span>· {Object.keys(live).length} running</span>
       <span className="right">{fps} fps</span>
@@ -53,24 +68,39 @@ function Notices() {
   const notices = useStore((s) => s.notices);
   return (
     <div className="notices" aria-live="assertive">
-      {notices.map((n) => (<div key={n.id} className={`notice ${n.level}`}>{n.text}</div>))}
+      {notices.map((n) => (
+        <div key={n.id} className={`notice ${n.level}`}>
+          {n.text}
+        </div>
+      ))}
     </div>
   );
 }
 
 function ViewPanels({ view }: { view: ViewId }) {
   switch (view) {
-    case 'command': return null;
-    case 'voice': return <VoicePanel />;
-    case 'agents': return <AgentsPanel />;
-    case 'tasks': return <TaskGraphPanel />;
-    case 'departments': return <DepartmentsPanel />;
-    case 'modules': return <ModulesPanel />;
-    case 'memory': return <MemoryPanel />;
-    case 'system': return <SystemPanel />;
-    case 'activity': return <ActivityPanel />;
-    case 'settings': return <SettingsPanel />;
-    case 'account': return <AccountPanel />;
+    case 'command':
+      return null;
+    case 'voice':
+      return <VoicePanel />;
+    case 'agents':
+      return <AgentsPanel />;
+    case 'tasks':
+      return <TaskGraphPanel />;
+    case 'departments':
+      return <DepartmentsPanel />;
+    case 'modules':
+      return <ModulesPanel />;
+    case 'memory':
+      return <MemoryPanel />;
+    case 'system':
+      return <SystemPanel />;
+    case 'activity':
+      return <ActivityPanel />;
+    case 'settings':
+      return <SettingsPanel />;
+    case 'account':
+      return <AccountPanel />;
   }
 }
 
@@ -85,7 +115,15 @@ export function App() {
     void connect();
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement;
-      if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (
+        el.tagName === 'INPUT' ||
+        el.tagName === 'TEXTAREA' ||
+        el.tagName === 'SELECT' ||
+        e.ctrlKey ||
+        e.metaKey ||
+        e.altKey
+      )
+        return;
       const hit = NAV.find(([, , k]) => k && k === e.key);
       if (hit) go(hit[0]);
       if (e.key === 'Escape') go('command');
@@ -117,7 +155,14 @@ export function App() {
         <div className="brand">J.A.R.V.I.S</div>
         <nav aria-label="Views">
           {NAV.map(([id, label, key]) => (
-            <button key={id} className={view === id ? 'sel' : ''} onClick={() => go(id)} title={key ? `${label} (${key})` : label}>{label}</button>
+            <button
+              key={id}
+              className={view === id ? 'sel' : ''}
+              onClick={() => go(id)}
+              title={key ? `${label} (${key})` : label}
+            >
+              {label}
+            </button>
           ))}
         </nav>
       </header>

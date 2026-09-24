@@ -1,5 +1,12 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { BillingEventSchema, WebhookVerificationError, type BillingEvent, type BillingProvider, type CheckoutRequest, type CheckoutSession } from '@jarvis/billing-core';
+import {
+  BillingEventSchema,
+  WebhookVerificationError,
+  type BillingEvent,
+  type BillingProvider,
+  type CheckoutRequest,
+  type CheckoutSession,
+} from '@jarvis/billing-core';
 
 /**
  * Generic signed-webhook gateway for payment processors without a built-in
@@ -35,14 +42,19 @@ export class SignedGatewayProvider implements BillingProvider {
     return 'sha256=' + createHmac('sha256', secret).update(`${timestamp}.`).update(body).digest('hex');
   }
 
-  async parseWebhook(rawBody: Buffer, headers: Record<string, string | string[] | undefined>): Promise<BillingEvent[]> {
+  async parseWebhook(
+    rawBody: Buffer,
+    headers: Record<string, string | string[] | undefined>,
+  ): Promise<BillingEvent[]> {
     if (!this.cfg.secret) throw new WebhookVerificationError('Gateway webhook secret not configured');
     const ts = Number(headers['x-jarvis-timestamp']);
     const sig = String(headers['x-jarvis-signature'] ?? '');
-    if (!ts || Math.abs(Date.now() / 1000 - ts) > (this.cfg.toleranceSec ?? 300)) throw new WebhookVerificationError('Timestamp missing or outside tolerance');
+    if (!ts || Math.abs(Date.now() / 1000 - ts) > (this.cfg.toleranceSec ?? 300))
+      throw new WebhookVerificationError('Timestamp missing or outside tolerance');
     const expected = Buffer.from(SignedGatewayProvider.sign(this.cfg.secret, ts, rawBody));
     const got = Buffer.from(sig);
-    if (expected.length !== got.length || !timingSafeEqual(expected, got)) throw new WebhookVerificationError('Invalid gateway signature');
+    if (expected.length !== got.length || !timingSafeEqual(expected, got))
+      throw new WebhookVerificationError('Invalid gateway signature');
     const parsed = JSON.parse(rawBody.toString('utf8')) as unknown;
     const list = Array.isArray(parsed) ? parsed : [parsed];
     return list.map((e) => BillingEventSchema.parse({ ...(e as object), provider: this.id }));

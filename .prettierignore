@@ -3,3 +3,6 @@ dist
 target
 node_modules
 apps/desktop/src-tauri/gen
+.cache
+test-results
+*.nsi

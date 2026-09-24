@@ -1,8 +1,10 @@
-export const API_URL: string = (import.meta.env.VITE_LICENSE_API_URL as string | undefined) ?? 'http://localhost:8787';
+export const API_URL: string =
+  (import.meta.env.VITE_LICENSE_API_URL as string | undefined) ?? 'http://localhost:8787';
 
 const TOKEN_KEY = 'jarvis-admin-token';
 export const getToken = () => sessionStorage.getItem(TOKEN_KEY);
-export const setToken = (t: string | null) => (t ? sessionStorage.setItem(TOKEN_KEY, t) : sessionStorage.removeItem(TOKEN_KEY));
+export const setToken = (t: string | null) =>
+  t ? sessionStorage.setItem(TOKEN_KEY, t) : sessionStorage.removeItem(TOKEN_KEY);
 
 export class ApiError extends Error {
   constructor(
@@ -17,7 +19,10 @@ export async function api<T = unknown>(method: string, path: string, body?: unkn
   const token = getToken();
   const res = await fetch(`${API_URL}${path}`, {
     method,
-    headers: { ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    headers: {
+      ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
   const data = (await res.json().catch(() => ({}))) as { message?: string };
@@ -30,4 +35,5 @@ export async function api<T = unknown>(method: string, path: string, body?: unkn
 }
 
 export const fmtDate = (d?: string | null) => (d ? new Date(d).toLocaleString() : '—');
-export const fmtMoney = (amount: number, currency: string) => `${Number(amount).toLocaleString('en-PK')} ${currency}`;
+export const fmtMoney = (amount: number, currency: string) =>
+  `${Number(amount).toLocaleString('en-PK')} ${currency}`;

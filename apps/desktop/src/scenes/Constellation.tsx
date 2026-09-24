@@ -29,10 +29,29 @@ export function Constellation({ showLabels }: { showLabels: boolean }) {
         const active = list.some((a) => a.health.state === 'busy');
         return (
           <group key={d}>
-            <Line points={[[0, 0, 0], hub.toArray()]} color={DEPT_COLORS[d]} lineWidth={active ? 2 : 1} transparent opacity={active ? 0.9 : 0.25} />
-            <DepartmentHub dept={d} position={hub} active={active} selected={selectedDept === d} count={list.length} showLabel={showLabels} />
+            <Line
+              points={[[0, 0, 0], hub.toArray()]}
+              color={DEPT_COLORS[d]}
+              lineWidth={active ? 2 : 1}
+              transparent
+              opacity={active ? 0.9 : 0.25}
+            />
+            <DepartmentHub
+              dept={d}
+              position={hub}
+              active={active}
+              selected={selectedDept === d}
+              count={list.length}
+              showLabel={showLabels}
+            />
             {list.map((a, i) => (
-              <AgentNode key={a.id} agent={a} position={agentPosition(d, i, list.length)} hub={hub} selected={selectedAgent === a.id} />
+              <AgentNode
+                key={a.id}
+                agent={a}
+                position={agentPosition(d, i, list.length)}
+                hub={hub}
+                selected={selectedAgent === a.id}
+              />
             ))}
           </group>
         );
@@ -41,7 +60,21 @@ export function Constellation({ showLabels }: { showLabels: boolean }) {
   );
 }
 
-function DepartmentHub({ dept, position, active, selected, count, showLabel }: { dept: string; position: THREE.Vector3; active: boolean; selected: boolean; count: number; showLabel: boolean }) {
+function DepartmentHub({
+  dept,
+  position,
+  active,
+  selected,
+  count,
+  showLabel,
+}: {
+  dept: string;
+  position: THREE.Vector3;
+  active: boolean;
+  selected: boolean;
+  count: number;
+  showLabel: boolean;
+}) {
   const ref = useRef<THREE.Mesh>(null);
   const [hover, setHover] = useState(false);
   const reduced = useStore((s) => s.prefs.reducedMotion);
@@ -69,7 +102,12 @@ function DepartmentHub({ dept, position, active, selected, count, showLabel }: {
         }}
       >
         <octahedronGeometry args={[0.45, 0]} />
-        <meshStandardMaterial color={DEPT_COLORS[dept]} emissive={DEPT_COLORS[dept]} emissiveIntensity={active ? 2.2 : 0.7} wireframe={!active} />
+        <meshStandardMaterial
+          color={DEPT_COLORS[dept]}
+          emissive={DEPT_COLORS[dept]}
+          emissiveIntensity={active ? 2.2 : 0.7}
+          wireframe={!active}
+        />
       </mesh>
       {(showLabel || hover || selected) && (
         <Html center distanceFactor={14} position={[0, 0.9, 0]} className="label3d">
@@ -80,7 +118,17 @@ function DepartmentHub({ dept, position, active, selected, count, showLabel }: {
   );
 }
 
-function AgentNode({ agent, position, hub, selected }: { agent: AgentInfo; position: THREE.Vector3; hub: THREE.Vector3; selected: boolean }) {
+function AgentNode({
+  agent,
+  position,
+  hub,
+  selected,
+}: {
+  agent: AgentInfo;
+  position: THREE.Vector3;
+  hub: THREE.Vector3;
+  selected: boolean;
+}) {
   const [hover, setHover] = useState(false);
   const ref = useRef<THREE.Mesh>(null);
   const color = HEALTH_COLORS[agent.health.state] ?? DEPT_COLORS[agent.department] ?? '#7fe3ff';
@@ -92,7 +140,13 @@ function AgentNode({ agent, position, hub, selected }: { agent: AgentInfo; posit
   });
   return (
     <group>
-      <Line points={[hub.toArray(), position.toArray()]} color={DEPT_COLORS[agent.department]} transparent opacity={busy ? 0.8 : 0.15} lineWidth={1} />
+      <Line
+        points={[hub.toArray(), position.toArray()]}
+        color={DEPT_COLORS[agent.department]}
+        transparent
+        opacity={busy ? 0.8 : 0.15}
+        lineWidth={1}
+      />
       <mesh
         ref={ref}
         position={position}
@@ -107,10 +161,19 @@ function AgentNode({ agent, position, hub, selected }: { agent: AgentInfo; posit
         onPointerOut={() => setHover(false)}
       >
         <sphereGeometry args={[0.13, 16, 16]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={busy ? 3 : agent.health.state === 'disabled' ? 0.1 : 0.8} />
+        <meshStandardMaterial
+          color={color}
+          emissive={color}
+          emissiveIntensity={busy ? 3 : agent.health.state === 'disabled' ? 0.1 : 0.8}
+        />
       </mesh>
       {(hover || selected) && (
-        <Html center distanceFactor={12} position={position.clone().add(new THREE.Vector3(0, 0.45, 0))} className="label3d">
+        <Html
+          center
+          distanceFactor={12}
+          position={position.clone().add(new THREE.Vector3(0, 0.45, 0))}
+          className="label3d"
+        >
           {agent.name}
           <small> · {agent.health.state}</small>
         </Html>

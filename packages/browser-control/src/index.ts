@@ -3,6 +3,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { existsSync, mkdirSync } from 'node:fs';
 import type { Browser, BrowserContext, Page } from 'playwright-core';
+import type * as Playwright from 'playwright-core';
 import { JarvisError } from '@jarvis/shared';
 import { defineTool, type ToolDefinition } from '@jarvis/tool-runtime';
 import { scanForInjection, wrapUntrusted } from '@jarvis/security';
@@ -31,9 +32,9 @@ function defaultOptions(): BrowserOptions {
  * Loads playwright-core. Packaged builds (Node single-executable) ship it as a
  * plain folder next to the executable and install a filesystem require hook.
  */
-export async function loadPlaywright(): Promise<typeof import('playwright-core')> {
+export async function loadPlaywright(): Promise<typeof Playwright> {
   const req = (globalThis as { __JARVIS_REQUIRE__?: (id: string) => unknown }).__JARVIS_REQUIRE__;
-  if (req) return req('playwright-core') as typeof import('playwright-core');
+  if (req) return req('playwright-core') as typeof Playwright;
   return import('playwright-core');
 }
 
@@ -44,7 +45,8 @@ export function assertSafeUrl(raw: string): string {
   } catch {
     throw new JarvisError('INVALID_INPUT', `Invalid URL: ${raw}`);
   }
-  if (!['http:', 'https:'].includes(u.protocol)) throw new JarvisError('PERMISSION_DENIED', `Blocked URL scheme ${u.protocol}`);
+  if (!['http:', 'https:'].includes(u.protocol))
+    throw new JarvisError('PERMISSION_DENIED', `Blocked URL scheme ${u.protocol}`);
   return u.toString();
 }
 
@@ -61,7 +63,10 @@ export class BrowserSession {
 
   isAvailable(): { ok: boolean; reason?: string } {
     if (this.opts.executablePath || this.opts.channel) return { ok: true };
-    return { ok: false, reason: 'No browser configured. Set JARVIS_BROWSER_PATH to a Chromium/Edge/Chrome executable.' };
+    return {
+      ok: false,
+      reason: 'No browser configured. Set JARVIS_BROWSER_PATH to a Chromium/Edge/Chrome executable.',
+    };
   }
 
   async getPage(): Promise<Page> {
@@ -128,10 +133,15 @@ function locator(page: Page, target: { selector?: string; text?: string; label?:
   throw new JarvisError('INVALID_INPUT', 'Provide selector, label or text');
 }
 
-const Target = z.object({ selector: z.string().optional(), text: z.string().optional(), label: z.string().optional() });
+const Target = z.object({
+  selector: z.string().optional(),
+  text: z.string().optional(),
+  label: z.string().optional(),
+});
 
 export function browserTools(session: BrowserSession): ToolDefinition[] {
-  const status = () => (session.isAvailable().ok ? 'active' : 'not_configured') as 'active' | 'not_configured';
+  const status = () =>
+    (session.isAvailable().ok ? 'active' : 'not_configured') as 'active' | 'not_configured';
   const statusReason = () => session.isAvailable().reason;
   const base = { module: 'browser-control', status, statusReason };
   return [
@@ -139,7 +149,8 @@ export function browserTools(session: BrowserSession): ToolDefinition[] {
       ...base,
       id: 'browser.open',
       title: 'Open web page',
-      description: 'Navigate the automation browser to a URL and return the page snapshot (untrusted content).',
+      description:
+        'Navigate the automation browser to a URL and return the page snapshot (untrusted content).',
       categories: ['BROWSER', 'NETWORK'],
       input: z.object({ url: z.string().min(1) }),
       assess: (i) => ({ risk: 'medium', target: assertSafeUrl(i.url) }),
@@ -193,13 +204,20 @@ export function browserTools(session: BrowserSession): ToolDefinition[] {
       ...base,
       id: 'browser.fill_form',
       title: 'Fill form',
-      description: 'Fill several form fields by label or selector. Does not submit unless submitSelector is given.',
+      description:
+        'Fill several form fields by label or selector. Does not submit unless submitSelector is given.',
       categories: ['BROWSER', 'WRITE'],
       input: z.object({
-        fields: z.array(Target.extend({ value: z.string() })).min(1).max(50),
+        fields: z
+          .array(Target.extend({ value: z.string() }))
+          .min(1)
+          .max(50),
         submitSelector: z.string().optional(),
       }),
-      assess: (i) => ({ risk: i.submitSelector ? 'high' : 'medium', description: `Fill ${i.fields.length} form fields${i.submitSelector ? ' and submit' : ''}` }),
+      assess: (i) => ({
+        risk: i.submitSelector ? 'high' : 'medium',
+        description: `Fill ${i.fields.length} form fields${i.submitSelector ? ' and submit' : ''}`,
+      }),
       execute: async (i) => {
         const page = await session.getPage();
         for (const f of i.fields) await locator(page, f).fill(f.value, { timeout: 15_000 });
@@ -227,7 +245,8 @@ export function browserTools(session: BrowserSession): ToolDefinition[] {
       ...base,
       id: 'browser.download',
       title: 'Download file',
-      description: 'Click a link/button that triggers a download and save the file to the JARVIS downloads folder.',
+      description:
+        'Click a link/button that triggers a download and save the file to the JARVIS downloads folder.',
       categories: ['BROWSER', 'WRITE', 'NETWORK'],
       input: Target,
       assess: () => ({ risk: 'high', description: 'Download a file from the web' }),
@@ -235,7 +254,10 @@ export function browserTools(session: BrowserSession): ToolDefinition[] {
         const page = await session.getPage();
         const dir = session.opts.downloadsDir ?? path.join(os.homedir(), 'Downloads', 'JARVIS');
         mkdirSync(dir, { recursive: true });
-        const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 60_000 }), locator(page, i).click()]);
+        const [dl] = await Promise.all([
+          page.waitForEvent('download', { timeout: 60_000 }),
+          locator(page, i).click(),
+        ]);
         const dest = path.join(dir, path.basename(dl.suggestedFilename()));
         await dl.saveAs(dest);
         return { path: dest, url: dl.url() };
@@ -248,7 +270,11 @@ export function browserTools(session: BrowserSession): ToolDefinition[] {
       description: 'Attach a local file to a file input. Always requires confirmation.',
       categories: ['BROWSER', 'SENSITIVE'],
       input: z.object({ selector: z.string(), filePath: z.string() }),
-      assess: (i) => ({ risk: 'high', target: path.resolve(i.filePath), description: `Upload ${path.resolve(i.filePath)} to the current web page` }),
+      assess: (i) => ({
+        risk: 'high',
+        target: path.resolve(i.filePath),
+        description: `Upload ${path.resolve(i.filePath)} to the current web page`,
+      }),
       execute: async (i) => {
         const page = await session.getPage();
         await page.locator(i.selector).first().setInputFiles(path.resolve(i.filePath));

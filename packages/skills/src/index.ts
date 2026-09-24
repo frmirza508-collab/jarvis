@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import type { z } from 'zod';
 import { JarvisError } from '@jarvis/shared';
 import type { ToolRuntime, ToolContext } from '@jarvis/tool-runtime';
 
@@ -10,7 +10,10 @@ import type { ToolRuntime, ToolContext } from '@jarvis/tool-runtime';
 export interface SkillContext extends ToolContext {
   tool: (id: string, input: unknown) => Promise<unknown>;
   /** Ask the language model (role-routed). Returns plain text. */
-  llm: (prompt: string, opts?: { role?: 'fast' | 'reasoning' | 'coding'; system?: string; json?: boolean }) => Promise<string>;
+  llm: (
+    prompt: string,
+    opts?: { role?: 'fast' | 'reasoning' | 'coding'; system?: string; json?: boolean },
+  ) => Promise<string>;
   progress: (message: string) => void;
 }
 
@@ -42,7 +45,8 @@ export class SkillRegistry {
   constructor(private readonly tools: ToolRuntime) {}
 
   register(s: SkillDefinition<z.ZodType, unknown>): void {
-    for (const t of s.tools) if (!this.tools.get(t)) throw new Error(`Skill ${s.id} references unknown tool ${t}`);
+    for (const t of s.tools)
+      if (!this.tools.get(t)) throw new Error(`Skill ${s.id} references unknown tool ${t}`);
     this.skills.set(s.id, s);
   }
 
@@ -66,7 +70,8 @@ export class SkillRegistry {
     const s = this.skills.get(id);
     if (!s) throw new JarvisError('NOT_FOUND', `Unknown skill ${id}`);
     const parsed = s.input.safeParse(rawInput);
-    if (!parsed.success) throw new JarvisError('INVALID_INPUT', `Invalid input for skill ${id}: ${parsed.error.message}`);
+    if (!parsed.success)
+      throw new JarvisError('INVALID_INPUT', `Invalid input for skill ${id}: ${parsed.error.message}`);
     const st = this.getStats(id);
     st.runs++;
     this.stats.set(id, st);
@@ -74,7 +79,8 @@ export class SkillRegistry {
       ...base,
       progress: base.progress ?? (() => {}),
       tool: (toolId, input) => {
-        if (!s.tools.includes(toolId)) throw new JarvisError('PERMISSION_DENIED', `Skill ${id} may not use tool ${toolId}`);
+        if (!s.tools.includes(toolId))
+          throw new JarvisError('PERMISSION_DENIED', `Skill ${id} may not use tool ${toolId}`);
         return this.tools.invoke(toolId, input, base);
       },
     };

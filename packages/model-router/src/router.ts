@@ -84,7 +84,13 @@ export class ModelRouter {
 
   private record(entry: RequestLogEntry, res?: ChatResponse): void {
     const key = `${entry.provider}/${entry.model}`;
-    const s = this.stats.get(key) ?? { requests: 0, errors: 0, promptTokens: 0, completionTokens: 0, totalLatencyMs: 0 };
+    const s = this.stats.get(key) ?? {
+      requests: 0,
+      errors: 0,
+      promptTokens: 0,
+      completionTokens: 0,
+      totalLatencyMs: 0,
+    };
     s.requests++;
     s.totalLatencyMs += entry.latencyMs;
     if (!entry.ok) {
@@ -107,7 +113,10 @@ export class ModelRouter {
   ): Promise<ChatResponse> {
     const chain = this.roles[role].filter((t) => this.providers.get(t.provider)?.isConfigured());
     if (chain.length === 0)
-      throw new JarvisError('NOT_CONFIGURED', `No configured model provider for role "${role}". Add an OpenRouter API key in Settings.`);
+      throw new JarvisError(
+        'NOT_CONFIGURED',
+        `No configured model provider for role "${role}". Add an OpenRouter API key in Settings.`,
+      );
     let lastErr: unknown;
     for (const target of chain) {
       const p = this.providers.get(target.provider)!;
@@ -116,20 +125,44 @@ export class ModelRouter {
         const full = { ...req, model: target.model };
         const res = opts.onDelta && p.stream ? await p.stream(full, opts.onDelta) : await p.chat(full);
         this.record(
-          { ts: new Date().toISOString(), role, provider: p.id, model: target.model, ok: true, latencyMs: Date.now() - started, tokens: res.usage.totalTokens },
+          {
+            ts: new Date().toISOString(),
+            role,
+            provider: p.id,
+            model: target.model,
+            ok: true,
+            latencyMs: Date.now() - started,
+            tokens: res.usage.totalTokens,
+          },
           res,
         );
         return res;
       } catch (e) {
         lastErr = e;
         const msg = e instanceof Error ? e.message : String(e);
-        this.record({ ts: new Date().toISOString(), role, provider: p.id, model: target.model, ok: false, latencyMs: Date.now() - started, error: msg });
+        this.record({
+          ts: new Date().toISOString(),
+          role,
+          provider: p.id,
+          model: target.model,
+          ok: false,
+          latencyMs: Date.now() - started,
+          error: msg,
+        });
         if (req.signal?.aborted) throw new JarvisError('CANCELLED', 'Request cancelled');
-        const retryable = e instanceof ProviderHttpError ? e.retryable || e.status === 404 || e.status === 400 : true;
-        this.logger.warn('model request failed, trying fallback', { provider: p.id, model: target.model, error: msg });
+        const retryable =
+          e instanceof ProviderHttpError ? e.retryable || e.status === 404 || e.status === 400 : true;
+        this.logger.warn('model request failed, trying fallback', {
+          provider: p.id,
+          model: target.model,
+          error: msg,
+        });
         if (!retryable) break;
       }
     }
-    throw new JarvisError('PROVIDER_ERROR', lastErr instanceof Error ? lastErr.message : 'All model providers failed');
+    throw new JarvisError(
+      'PROVIDER_ERROR',
+      lastErr instanceof Error ? lastErr.message : 'All model providers failed',
+    );
   }
 }

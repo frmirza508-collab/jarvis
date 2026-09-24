@@ -42,7 +42,10 @@ export class EntitlementSigner {
     return new EntitlementSigner(await importPKCS8(privateKeyPem, ALG));
   }
 
-  async sign(claims: Omit<EntitlementClaims, 'iat' | 'exp' | 'iss' | 'aud'>, ttlSeconds: number): Promise<string> {
+  async sign(
+    claims: Omit<EntitlementClaims, 'iat' | 'exp' | 'iss' | 'aud'>,
+    ttlSeconds: number,
+  ): Promise<string> {
     const nowSec = Math.floor(claims.srvNow / 1000);
     return new SignJWT({ ...claims })
       .setProtectedHeader({ alg: ALG, typ: 'JWT' })
@@ -80,7 +83,8 @@ export class EntitlementVerifier {
   async verify(token: string, expected: { fingerprint: string; nonce?: string }): Promise<EntitlementClaims> {
     let payload: unknown;
     try {
-      const decodedIat = JSON.parse(Buffer.from(token.split('.')[1] ?? '', 'base64url').toString('utf8')).iat as number;
+      const decodedIat = JSON.parse(Buffer.from(token.split('.')[1] ?? '', 'base64url').toString('utf8'))
+        .iat as number;
       ({ payload } = await jwtVerify(token, this.key, {
         issuer: LICENSE_ISSUER,
         audience: LICENSE_AUDIENCE,
@@ -93,8 +97,10 @@ export class EntitlementVerifier {
     const parsed = EntitlementClaimsSchema.safeParse(payload);
     if (!parsed.success) throw new LicenseVerificationError('claims', 'Malformed license claims');
     const c = parsed.data;
-    if (c.fp !== expected.fingerprint) throw new LicenseVerificationError('device', 'License was issued for a different device');
-    if (expected.nonce !== undefined && c.nonce !== expected.nonce) throw new LicenseVerificationError('nonce', 'License response nonce mismatch (possible replay)');
+    if (c.fp !== expected.fingerprint)
+      throw new LicenseVerificationError('device', 'License was issued for a different device');
+    if (expected.nonce !== undefined && c.nonce !== expected.nonce)
+      throw new LicenseVerificationError('nonce', 'License response nonce mismatch (possible replay)');
     return c;
   }
 }
@@ -117,7 +123,13 @@ export type EntitlementDecision =
   | {
       premium: false;
       claims?: EntitlementClaims;
-      reason: 'no_license' | 'inactive' | 'entitlement_expired' | 'offline_window_exceeded' | 'clock_tampered' | 'token_expired';
+      reason:
+        | 'no_license'
+        | 'inactive'
+        | 'entitlement_expired'
+        | 'offline_window_exceeded'
+        | 'clock_tampered'
+        | 'token_expired';
       needsOnlineCheck: boolean;
     };
 
@@ -169,12 +181,16 @@ export class EntitlementGuard {
     if (tampered) return { premium: false, claims, reason: 'clock_tampered', needsOnlineCheck: true };
     const now = Math.max(systemNowMs, this.state.trustedTimeMs);
     const needsOnlineCheck =
-      this.state.lastOnlineCheckMs === undefined || now - this.state.lastOnlineCheckMs >= this.opts.recheckIntervalMs;
-    if (this.state.offlineElapsedMs > this.opts.maxOfflineMs) return { premium: false, claims, reason: 'offline_window_exceeded', needsOnlineCheck: true };
-    if (now >= claims.exp * 1000) return { premium: false, claims, reason: 'token_expired', needsOnlineCheck: true };
+      this.state.lastOnlineCheckMs === undefined ||
+      now - this.state.lastOnlineCheckMs >= this.opts.recheckIntervalMs;
+    if (this.state.offlineElapsedMs > this.opts.maxOfflineMs)
+      return { premium: false, claims, reason: 'offline_window_exceeded', needsOnlineCheck: true };
+    if (now >= claims.exp * 1000)
+      return { premium: false, claims, reason: 'token_expired', needsOnlineCheck: true };
     if (!['active', 'past_due', 'canceled'].includes(claims.status) || claims.entUntil === null)
       return { premium: false, claims, reason: 'inactive', needsOnlineCheck };
-    if (now >= claims.entUntil * 1000) return { premium: false, claims, reason: 'entitlement_expired', needsOnlineCheck: true };
+    if (now >= claims.entUntil * 1000)
+      return { premium: false, claims, reason: 'entitlement_expired', needsOnlineCheck: true };
     return { premium: true, claims, reason: 'ok', needsOnlineCheck };
   }
 }

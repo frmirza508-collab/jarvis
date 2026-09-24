@@ -1,7 +1,13 @@
 import path from 'node:path';
 
 /** Paths JARVIS never writes to or deletes, regardless of grants. */
-const PROTECTED_WINDOWS = [/^[a-z]:\\windows(\\|$)/i, /^[a-z]:\\program files( \(x86\))?(\\|$)/i, /^[a-z]:\\programdata\\microsoft(\\|$)/i, /^[a-z]:\\\$recycle\.bin/i, /^[a-z]:\\?$/i];
+const PROTECTED_WINDOWS = [
+  /^[a-z]:\\windows(\\|$)/i,
+  /^[a-z]:\\program files( \(x86\))?(\\|$)/i,
+  /^[a-z]:\\programdata\\microsoft(\\|$)/i,
+  /^[a-z]:\\\$recycle\.bin/i,
+  /^[a-z]:\\?$/i,
+];
 const PROTECTED_POSIX = [/^\/(bin|sbin|boot|dev|etc|lib|lib64|proc|sys|usr)(\/|$)/, /^\/$/];
 
 export function isProtectedPath(p: string): boolean {
@@ -10,7 +16,15 @@ export function isProtectedPath(p: string): boolean {
   return list.some((re) => re.test(abs));
 }
 
-const CREDENTIAL_FILES = [/[\\/]\.ssh[\\/]/i, /[\\/]\.aws[\\/]credentials$/i, /[\\/]\.env(\.|$)/i, /\.(pem|key|pfx|p12|kdbx)$/i, /[\\/](Login Data|Cookies|Web Data)$/i, /[\\/]Microsoft[\\/]Credentials[\\/]/i, /[\\/]Microsoft[\\/]Protect[\\/]/i];
+const CREDENTIAL_FILES = [
+  /[\\/]\.ssh[\\/]/i,
+  /[\\/]\.aws[\\/]credentials$/i,
+  /[\\/]\.env(\.|$)/i,
+  /\.(pem|key|pfx|p12|kdbx)$/i,
+  /[\\/](Login Data|Cookies|Web Data)$/i,
+  /[\\/]Microsoft[\\/]Credentials[\\/]/i,
+  /[\\/]Microsoft[\\/]Protect[\\/]/i,
+];
 
 /** Credential-bearing files require SENSITIVE permission. */
 export function isSensitivePath(p: string): boolean {

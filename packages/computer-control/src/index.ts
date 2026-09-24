@@ -43,15 +43,30 @@ export class PowerShellDriver implements ComputerDriver {
 
   run<T = unknown>(script: string, params: Record<string, unknown> = {}, timeoutMs = 30_000): Promise<T> {
     if (!this.platformSupported) {
-      return Promise.reject(new JarvisError('UNSUPPORTED_PLATFORM', 'Computer control is only available on Windows'));
+      return Promise.reject(
+        new JarvisError('UNSUPPORTED_PLATFORM', 'Computer control is only available on Windows'),
+      );
     }
     const full = PRELUDE + script;
     const encoded = Buffer.from(full, 'utf16le').toString('base64');
     return new Promise((resolve, reject) => {
-      const child = spawn('powershell.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-STA', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', encoded], {
-        windowsHide: true,
-        env: { ...process.env, JARVIS_PARAMS: Buffer.from(JSON.stringify(params)).toString('base64') },
-      });
+      const child = spawn(
+        'powershell.exe',
+        [
+          '-NoLogo',
+          '-NoProfile',
+          '-NonInteractive',
+          '-STA',
+          '-ExecutionPolicy',
+          'Bypass',
+          '-EncodedCommand',
+          encoded,
+        ],
+        {
+          windowsHide: true,
+          env: { ...process.env, JARVIS_PARAMS: Buffer.from(JSON.stringify(params)).toString('base64') },
+        },
+      );
       let out = '';
       let errOut = '';
       child.stdout.on('data', (d: Buffer) => (out += d.toString('utf8')));
@@ -63,7 +78,8 @@ export class PowerShellDriver implements ComputerDriver {
       });
       child.on('close', (code) => {
         clearTimeout(t);
-        if (code !== 0) return reject(new JarvisError('INTERNAL', errOut.trim() || `PowerShell exited ${code}`));
+        if (code !== 0)
+          return reject(new JarvisError('INTERNAL', errOut.trim() || `PowerShell exited ${code}`));
         const text = out.trim();
         try {
           resolve((text ? JSON.parse(text) : null) as T);
@@ -163,7 +179,12 @@ export function computerTools(driver: ComputerDriver): ToolDefinition[] {
       categories: ['SYSTEM', 'SENSITIVE'],
       input: z.object({ path: z.string().optional() }),
       assess: () => ({ risk: 'high', description: 'Capture the screen (may include private information)' }),
-      execute: (i) => driver.run(SCRIPTS.screenshot, { path: path.resolve(i.path ?? path.join(os.homedir(), 'Pictures', 'JARVIS', `screen-${Date.now()}.png`)) }),
+      execute: (i) =>
+        driver.run(SCRIPTS.screenshot, {
+          path: path.resolve(
+            i.path ?? path.join(os.homedir(), 'Pictures', 'JARVIS', `screen-${Date.now()}.png`),
+          ),
+        }),
     }),
     defineTool({
       ...base,
@@ -190,8 +211,16 @@ export function computerTools(driver: ComputerDriver): ToolDefinition[] {
       title: 'Window action',
       description: 'Focus, minimize, maximize, restore or close a window by title fragment or pid.',
       categories: ['SYSTEM'],
-      input: z.object({ action: z.enum(['focus', 'minimize', 'maximize', 'restore', 'close']), title: z.string().optional(), pid: z.number().int().optional() }),
-      assess: (i) => ({ risk: i.action === 'close' ? 'high' : 'medium', target: i.title ?? String(i.pid), description: `${i.action} window ${i.title ?? i.pid}` }),
+      input: z.object({
+        action: z.enum(['focus', 'minimize', 'maximize', 'restore', 'close']),
+        title: z.string().optional(),
+        pid: z.number().int().optional(),
+      }),
+      assess: (i) => ({
+        risk: i.action === 'close' ? 'high' : 'medium',
+        target: i.title ?? String(i.pid),
+        description: `${i.action} window ${i.title ?? i.pid}`,
+      }),
       execute: (i) => {
         if (!i.title && !i.pid) throw new JarvisError('INVALID_INPUT', 'title or pid required');
         return driver.run(SCRIPTS.windowAction, i);
@@ -204,7 +233,11 @@ export function computerTools(driver: ComputerDriver): ToolDefinition[] {
       description: 'Start an application, document or URL with its default handler.',
       categories: ['EXECUTE', 'SYSTEM'],
       input: z.object({ target: z.string().min(1), args: z.array(z.string()).optional() }),
-      assess: (i) => ({ risk: 'high', target: i.target, description: `Launch ${i.target} ${(i.args ?? []).join(' ')}` }),
+      assess: (i) => ({
+        risk: 'high',
+        target: i.target,
+        description: `Launch ${i.target} ${(i.args ?? []).join(' ')}`,
+      }),
       execute: (i) => driver.run(SCRIPTS.launch, i),
     }),
     defineTool({
@@ -233,7 +266,12 @@ export function computerTools(driver: ComputerDriver): ToolDefinition[] {
       title: 'Mouse click',
       description: 'Move the mouse to screen coordinates and click.',
       categories: ['SYSTEM'],
-      input: z.object({ x: z.number().int(), y: z.number().int(), button: z.enum(['left', 'right']).default('left'), clicks: z.number().int().min(0).max(3).default(1) }),
+      input: z.object({
+        x: z.number().int(),
+        y: z.number().int(),
+        button: z.enum(['left', 'right']).default('left'),
+        clicks: z.number().int().min(0).max(3).default(1),
+      }),
       assess: (i) => ({ risk: 'high', description: `${i.button} click x${i.clicks} at (${i.x}, ${i.y})` }),
       execute: (i) => driver.run(SCRIPTS.mouse, i),
     }),
@@ -244,17 +282,24 @@ export function computerTools(driver: ComputerDriver): ToolDefinition[] {
       description: 'Type literal text into the focused window.',
       categories: ['SYSTEM'],
       input: z.object({ text: z.string().max(10_000) }),
-      assess: (i) => ({ risk: 'high', description: `Type ${i.text.length} characters into the focused window` }),
+      assess: (i) => ({
+        risk: 'high',
+        description: `Type ${i.text.length} characters into the focused window`,
+      }),
       execute: (i) => driver.run(SCRIPTS.keys, { keys: escapeSendKeys(i.text) }),
     }),
     defineTool({
       ...base,
       id: 'computer.hotkey',
       title: 'Press keys',
-      description: 'Press a key combination using SendKeys syntax, e.g. "^s" (Ctrl+S), "%{F4}" (Alt+F4), "{ENTER}".',
+      description:
+        'Press a key combination using SendKeys syntax, e.g. "^s" (Ctrl+S), "%{F4}" (Alt+F4), "{ENTER}".',
       categories: ['SYSTEM'],
       input: z.object({ keys: z.string().min(1).max(200) }),
-      assess: (i) => ({ risk: /%\{F4\}|\^\{ESC\}/i.test(i.keys) ? 'high' : 'medium', description: `Press ${i.keys}` }),
+      assess: (i) => ({
+        risk: /%\{F4\}|\^\{ESC\}/i.test(i.keys) ? 'high' : 'medium',
+        description: `Press ${i.keys}`,
+      }),
       execute: (i) => driver.run(SCRIPTS.keys, i),
     }),
     defineTool({

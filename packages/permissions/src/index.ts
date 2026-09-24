@@ -55,8 +55,11 @@ export interface PermissionCheck {
 }
 
 function matches(rule: PolicyRule, req: PermissionRequest): boolean {
-  const actionOk = rule.action.endsWith('*') ? req.action.startsWith(rule.action.slice(0, -1)) : rule.action === req.action;
-  const targetOk = !rule.targetPrefix || (req.target ?? '').toLowerCase().startsWith(rule.targetPrefix.toLowerCase());
+  const actionOk = rule.action.endsWith('*')
+    ? req.action.startsWith(rule.action.slice(0, -1))
+    : rule.action === req.action;
+  const targetOk =
+    !rule.targetPrefix || (req.target ?? '').toLowerCase().startsWith(rule.targetPrefix.toLowerCase());
   return actionOk && targetOk;
 }
 
@@ -108,7 +111,9 @@ export class PermissionManager {
     return maxRisk(extra, ...categories.map((c) => CATEGORY_DEFAULT_RISK[c]));
   }
 
-  async request(input: Omit<PermissionRequest, 'id' | 'risk'> & { risk?: RiskLevel }): Promise<PermissionCheck> {
+  async request(
+    input: Omit<PermissionRequest, 'id' | 'risk'> & { risk?: RiskLevel },
+  ): Promise<PermissionCheck> {
     const req: PermissionRequest = {
       ...input,
       id: newId('perm'),
@@ -134,7 +139,8 @@ export class PermissionManager {
 
     // 2. Low-risk auto-allowed categories.
     const needsConfirm = riskAtLeast(req.risk, this.policy.confirmAtOrAbove);
-    if (!needsConfirm && req.categories.every((c) => this.policy.autoAllow.includes(c))) return log(true, 'policy');
+    if (!needsConfirm && req.categories.every((c) => this.policy.autoAllow.includes(c)))
+      return log(true, 'policy');
 
     // 3. Ask the user.
     if (!this.confirm) return log(false, 'no-handler');

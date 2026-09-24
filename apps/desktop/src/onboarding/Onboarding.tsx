@@ -31,8 +31,18 @@ export function Onboarding() {
     <div className="onboarding" role="dialog" aria-label="Welcome">
       <h2>Welcome to JARVIS</h2>
       <ol>
-        <li className={licOk ? 'done' : ''}>Activate your subscription <button className="link" onClick={() => go('account')}>Account</button></li>
-        <li className={modelOk ? 'done' : ''}>Connect an AI model provider (OpenRouter key) <button className="link" onClick={() => go('settings')}>Settings</button></li>
+        <li className={licOk ? 'done' : ''}>
+          Activate your subscription{' '}
+          <button className="link" onClick={() => go('account')}>
+            Account
+          </button>
+        </li>
+        <li className={modelOk ? 'done' : ''}>
+          Connect an AI model provider (OpenRouter key){' '}
+          <button className="link" onClick={() => go('settings')}>
+            Settings
+          </button>
+        </li>
         <li>Optional: add a web-search key and choose your voice language</li>
       </ol>
       <button onClick={close}>Got it</button>

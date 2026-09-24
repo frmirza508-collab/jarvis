@@ -21,7 +21,11 @@ export function deviceFingerprint(): string {
   let machineId = '';
   try {
     if (process.platform === 'win32') {
-      const out = execFileSync('reg', ['query', 'HKLM\\SOFTWARE\\Microsoft\\Cryptography', '/v', 'MachineGuid'], { encoding: 'utf8', windowsHide: true });
+      const out = execFileSync(
+        'reg',
+        ['query', 'HKLM\\SOFTWARE\\Microsoft\\Cryptography', '/v', 'MachineGuid'],
+        { encoding: 'utf8', windowsHide: true },
+      );
       machineId = /MachineGuid\s+REG_SZ\s+(\S+)/.exec(out)?.[1] ?? '';
     } else if (process.platform === 'linux') {
       machineId = readFileSync('/etc/machine-id', 'utf8').trim();
@@ -141,8 +145,10 @@ export class LicenseClient {
       no_license: 'No active license on this device. Activate JARVIS in Account.',
       inactive: `Your subscription is ${d.claims?.status ?? 'inactive'}. Renew to continue using premium features.`,
       entitlement_expired: 'Your subscription has expired. Renew to continue using premium features.',
-      offline_window_exceeded: 'JARVIS must reach the license server to confirm your subscription. Please connect to the internet.',
-      clock_tampered: 'System clock appears incorrect. Fix the date/time and connect to the internet to re-validate.',
+      offline_window_exceeded:
+        'JARVIS must reach the license server to confirm your subscription. Please connect to the internet.',
+      clock_tampered:
+        'System clock appears incorrect. Fix the date/time and connect to the internet to re-validate.',
       token_expired: 'License check expired. Please connect to the internet to re-validate.',
     };
     return { premium: false, reason: reasons[d.reason] ?? 'License required' };
@@ -158,7 +164,9 @@ export class LicenseClient {
       plan: this.claims?.plan,
       status: this.claims?.status,
       entitlementUntil: this.claims?.entUntil ? new Date(this.claims.entUntil * 1000).toISOString() : null,
-      lastOnlineCheck: this.guard.state.lastOnlineCheckMs ? new Date(this.guard.state.lastOnlineCheckMs).toISOString() : undefined,
+      lastOnlineCheck: this.guard.state.lastOnlineCheckMs
+        ? new Date(this.guard.state.lastOnlineCheckMs).toISOString()
+        : undefined,
       deviceId: this.claims?.did,
       error: this.lastError,
     };
@@ -179,7 +187,8 @@ export class LicenseClient {
     const j = (await res.json().catch(() => ({}))) as { token?: string; error?: string; message?: string };
     const msg = j.message ?? j.error ?? `License server error ${res.status}`;
     // Only definitive client-side rejections revoke the cached entitlement; outages/rate limits do not.
-    if (res.status === 401 || res.status === 403 || res.status === 404) throw new JarvisError('LICENSE_REQUIRED', msg);
+    if (res.status === 401 || res.status === 403 || res.status === 404)
+      throw new JarvisError('LICENSE_REQUIRED', msg);
     if (!res.ok || !j.token) throw new JarvisError('PROVIDER_ERROR', msg);
     return { token: j.token };
   }
@@ -207,7 +216,10 @@ export class LicenseClient {
       await this.accept(token, nonce);
       this.opts.secrets.set(KEY_NAME, licenseKey);
     } catch (e) {
-      this.lastError = e instanceof LicenseVerificationError ? `License response rejected: ${e.message}` : (e as Error).message;
+      this.lastError =
+        e instanceof LicenseVerificationError
+          ? `License response rejected: ${e.message}`
+          : (e as Error).message;
       throw e;
     }
     return this.status();
@@ -218,7 +230,12 @@ export class LicenseClient {
     if (!key) throw new JarvisError('LICENSE_REQUIRED', 'No license key stored');
     const nonce = randomBytes(16).toString('hex');
     try {
-      const { token } = await this.call('/v1/licenses/validate', { licenseKey: key, fingerprint: this.fingerprint, nonce, appVersion: this.opts.appVersion });
+      const { token } = await this.call('/v1/licenses/validate', {
+        licenseKey: key,
+        fingerprint: this.fingerprint,
+        nonce,
+        appVersion: this.opts.appVersion,
+      });
       await this.accept(token, nonce);
     } catch (e) {
       this.lastError = (e as Error).message;
