@@ -22,6 +22,12 @@ export const LICENSE_API_URL: string =
       : undefined
     : process.env.JARVIS_LICENSE_API_URL) ?? 'http://127.0.0.1:8787';
 
-/** Development license bypass is impossible in release builds. */
+/**
+ * Development license bypass is impossible in release builds. A development build
+ * without a license public key runs unlicensed (it cannot verify licenses anyway);
+ * set JARVIS_LICENSE_MODE=enforce to test licensing with a dev build.
+ */
 export const DEVELOPMENT_LICENSE_MODE: boolean =
-  !IS_RELEASE && process.env.JARVIS_LICENSE_MODE === 'development';
+  !IS_RELEASE &&
+  (process.env.JARVIS_LICENSE_MODE === 'development' ||
+    (!LICENSE_PUBLIC_KEY && process.env.JARVIS_LICENSE_MODE !== 'enforce'));
