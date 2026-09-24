@@ -14,6 +14,7 @@
     "@jarvis/permissions": "workspace:*",
     "@jarvis/security": "workspace:*",
     "zod": "^4.6.5",
-    "playwright-core": "^1.63.0"
+    "playwright-core": "^1.63.0",
+    "marked": "^18.0.14"
   }
 }

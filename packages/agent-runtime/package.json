@@ -20,6 +20,7 @@
     "@jarvis/permissions": "workspace:*",
     "@jarvis/audit": "workspace:*",
     "@jarvis/security": "workspace:*",
-    "zod": "^4.6.5"
+    "zod": "^4.6.5",
+    "@jarvis/voice": "workspace:*"
   }
 }

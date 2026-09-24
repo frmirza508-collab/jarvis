@@ -1,0 +1,34 @@
+{
+  "name": "@jarvis/tests",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@jarvis/agent-communication": "workspace:*",
+    "@jarvis/agent-registry": "workspace:*",
+    "@jarvis/agent-runtime": "workspace:*",
+    "@jarvis/agents-catalog": "workspace:*",
+    "@jarvis/audit": "workspace:*",
+    "@jarvis/billing-core": "workspace:*",
+    "@jarvis/browser-control": "workspace:*",
+    "@jarvis/computer-control": "workspace:*",
+    "@jarvis/file-system": "workspace:*",
+    "@jarvis/licensing": "workspace:*",
+    "@jarvis/memory": "workspace:*",
+    "@jarvis/model-router": "workspace:*",
+    "@jarvis/permissions": "workspace:*",
+    "@jarvis/security": "workspace:*",
+    "@jarvis/shared": "workspace:*",
+    "@jarvis/skills": "workspace:*",
+    "@jarvis/skills-catalog": "workspace:*",
+    "@jarvis/task-engine": "workspace:*",
+    "@jarvis/terminal": "workspace:*",
+    "@jarvis/tool-runtime": "workspace:*",
+    "@jarvis/voice": "workspace:*",
+    "@jarvis/web-research": "workspace:*"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.63.0",
+    "zod": "^4.6.5"
+  }
+}

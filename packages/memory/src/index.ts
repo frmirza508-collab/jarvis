@@ -46,7 +46,7 @@ export interface TaskHistoryRecord {
   id: string;
   request: string;
   language?: string;
-  status: 'succeeded' | 'failed' | 'cancelled';
+  status: 'running' | 'succeeded' | 'failed' | 'cancelled' | 'interrupted';
   summary: string;
   agents: string[];
   startedAt: string;
@@ -249,6 +249,15 @@ export class MemoryStore {
     this.db
       .prepare('INSERT OR REPLACE INTO task_history (id, request, language, status, summary, agents, started_at, finished_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
       .run(t.id, redactString(t.request), t.language ?? null, t.status, redactString(t.summary), JSON.stringify(t.agents), t.startedAt, t.finishedAt);
+  }
+
+  /** Crash recovery: tasks still marked running from a previous process are marked interrupted. */
+  markInterruptedTasks(): number {
+    return Number(
+      this.db
+        .prepare("UPDATE task_history SET status = 'interrupted', summary = 'Interrupted: JARVIS was closed or crashed before this task finished.' WHERE status = 'running'")
+        .run().changes,
+    );
   }
 
   taskHistory(limit = 50): TaskHistoryRecord[] {

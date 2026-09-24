@@ -151,6 +151,13 @@ export class AgentRegistry {
     this.emit(r);
   }
 
+  recordCorrection(id: string): void {
+    const r = this.agents.get(id);
+    if (!r) return;
+    r.metrics.reviewCorrections++;
+    this.emit(r);
+  }
+
   permissionsOf(id: string): PermissionCategory[] {
     return this.agents.get(id)?.def.permissions ?? [];
   }

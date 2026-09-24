@@ -150,3 +150,88 @@ export function researchTools(router: SearchRouter, f: typeof fetch = fetch): To
     }),
   ] as ToolDefinition[];
 }
+
+export interface PageMeta {
+  url: string;
+  status: number;
+  title: string;
+  metaDescription: string;
+  canonical?: string;
+  lang?: string;
+  robots?: string;
+  h1: string[];
+  h2: string[];
+  wordCount: number;
+  images: number;
+  imagesMissingAlt: number;
+  internalLinks: number;
+  externalLinks: number;
+  openGraph: Record<string, string>;
+  responseTimeMs: number;
+}
+
+function attr(tag: string, name: string): string | undefined {
+  return new RegExp(`${name}\\s*=\\s*["']([^"']*)["']`, 'i').exec(tag)?.[1];
+}
+
+/** Deterministic SEO-relevant metadata extraction from raw HTML. */
+export function extractPageMeta(html: string, url: string, status: number, responseTimeMs: number): PageMeta {
+  const host = new URL(url).host;
+  const metas = html.match(/<meta\b[^>]*>/gi) ?? [];
+  const metaBy = (key: string, val: string) => metas.find((m) => attr(m, key)?.toLowerCase() === val);
+  const og: Record<string, string> = {};
+  for (const m of metas) {
+    const p = attr(m, 'property');
+    if (p?.startsWith('og:')) og[p] = attr(m, 'content') ?? '';
+  }
+  const heads = (lvl: number) => [...html.matchAll(new RegExp(`<h${lvl}\\b[^>]*>([\\s\\S]*?)</h${lvl}>`, 'gi'))].map((m) => stripTags(m[1] ?? '')).filter(Boolean);
+  const imgs = html.match(/<img\b[^>]*>/gi) ?? [];
+  let internal = 0;
+  let external = 0;
+  for (const m of html.matchAll(/<a\b[^>]*href\s*=\s*["']([^"'#]+)["']/gi)) {
+    try {
+      const u = new URL(m[1]!, url);
+      if (u.protocol.startsWith('http')) u.host === host ? internal++ : external++;
+    } catch {
+      /* ignore */
+    }
+  }
+  const canonicalTag = (html.match(/<link\b[^>]*>/gi) ?? []).find((l) => attr(l, 'rel')?.toLowerCase() === 'canonical');
+  return {
+    url,
+    status,
+    title: stripTags(/<title[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1] ?? ''),
+    metaDescription: attr(metaBy('name', 'description') ?? '', 'content') ?? '',
+    canonical: canonicalTag ? attr(canonicalTag, 'href') : undefined,
+    lang: /<html\b[^>]*\blang\s*=\s*["']([^"']+)["']/i.exec(html)?.[1],
+    robots: attr(metaBy('name', 'robots') ?? '', 'content'),
+    h1: heads(1),
+    h2: heads(2).slice(0, 30),
+    wordCount: stripTags(html).split(/\s+/).filter(Boolean).length,
+    images: imgs.length,
+    imagesMissingAlt: imgs.filter((i) => !/\balt\s*=\s*["'][^"']+["']/i.test(i)).length,
+    internalLinks: internal,
+    externalLinks: external,
+    openGraph: og,
+    responseTimeMs,
+  };
+}
+
+export function pageMetaTool(f: typeof fetch = fetch): ToolDefinition {
+  return defineTool({
+    id: 'web.page_meta',
+    title: 'Page SEO metadata',
+    description: 'Fetch a URL and extract SEO metadata: title, meta description, headings, links, image alt coverage, Open Graph.',
+    module: 'web-research',
+    categories: ['NETWORK'],
+    input: z.object({ url: z.string().min(4) }),
+    assess: (i) => ({ risk: 'low', target: assertSafeUrl(i.url) }),
+    execute: async (i) => {
+      const safe = assertSafeUrl(i.url);
+      const t0 = Date.now();
+      const res = await f(safe, { headers: { 'User-Agent': 'JARVIS-SEO/0.1' }, redirect: 'follow', signal: AbortSignal.timeout(30_000) });
+      const html = (await res.text()).slice(0, 3_000_000);
+      return extractPageMeta(html, res.url || safe, res.status, Date.now() - t0);
+    },
+  }) as ToolDefinition;
+}

@@ -1,0 +1,48 @@
+{
+  "name": "@jarvis/orchestrator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "start": "tsx src/main.ts",
+    "build": "node scripts/build.mjs"
+  },
+  "dependencies": {
+    "@fastify/cors": "^11.3.0",
+    "@fastify/websocket": "^11.3.1",
+    "@jarvis/agent-communication": "workspace:*",
+    "@jarvis/agent-registry": "workspace:*",
+    "@jarvis/agent-runtime": "workspace:*",
+    "@jarvis/agents-catalog": "workspace:*",
+    "@jarvis/audit": "workspace:*",
+    "@jarvis/billing-core": "workspace:*",
+    "@jarvis/browser-control": "workspace:*",
+    "@jarvis/computer-control": "workspace:*",
+    "@jarvis/file-system": "workspace:*",
+    "@jarvis/licensing": "workspace:*",
+    "@jarvis/memory": "workspace:*",
+    "@jarvis/model-router": "workspace:*",
+    "@jarvis/permissions": "workspace:*",
+    "@jarvis/security": "workspace:*",
+    "@jarvis/shared": "workspace:*",
+    "@jarvis/skills": "workspace:*",
+    "@jarvis/skills-catalog": "workspace:*",
+    "@jarvis/task-engine": "workspace:*",
+    "@jarvis/terminal": "workspace:*",
+    "@jarvis/tool-runtime": "workspace:*",
+    "@jarvis/voice": "workspace:*",
+    "@jarvis/web-research": "workspace:*",
+    "fastify": "^5.12.5",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "@types/ws": "^8.18.1",
+    "ws": "^8.21.3"
+  }
+}

@@ -4,5 +4,6 @@ packages:
   - apps/*
   - agents
   - skills
+  - tests
 onlyBuiltDependencies:
   - esbuild

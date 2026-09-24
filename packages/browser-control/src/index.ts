@@ -259,3 +259,4 @@ export function browserTools(session: BrowserSession): ToolDefinition[] {
     }),
   ] as ToolDefinition[];
 }
+export * from './documents.js';
