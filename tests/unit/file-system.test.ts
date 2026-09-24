@@ -3,9 +3,10 @@ import os from 'node:os';
 import path from 'node:path';
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { FileIndex, fileSystemTools } from '@jarvis/file-system';
+import type { ConfirmHandler } from '@jarvis/permissions';
 import { makeRuntime } from '../helpers/runtime.js';
 
-function setup(confirm = vi.fn(async () => 'allow_once' as const)) {
+function setup(confirm: ConfirmHandler = vi.fn<ConfirmHandler>(async () => 'allow_once')) {
   const ws = mkdtempSync(path.join(os.tmpdir(), 'jarvis-fs-'));
   const rt = makeRuntime(confirm);
   for (const t of fileSystemTools(new FileIndex())) rt.tools.register(t);
@@ -34,7 +35,7 @@ describe('file-system tools', () => {
     await expect(rt.tools.invoke('fs.write', { path: 'x.txt', content: '2' }, ctx)).rejects.toThrow();
   });
   it('requires confirmation for deletion and respects denial', async () => {
-    const confirm = vi.fn(async () => 'deny' as const);
+    const confirm = vi.fn<ConfirmHandler>(async () => 'deny');
     const { ws, rt, ctx } = setup(confirm);
     writeFileSync(path.join(ws, 'keep.txt'), 'x');
     await expect(rt.tools.invoke('fs.delete', { path: 'keep.txt' }, ctx)).rejects.toMatchObject({ code: 'PERMISSION_DENIED' });

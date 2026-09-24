@@ -1,6 +1,6 @@
 import { AGENT_EVENT_TYPES, newId, type AgentEvent, type AgentEventOf, type AgentEventType } from '@jarvis/shared';
 
-type Handler<E extends AgentEvent = AgentEvent> = (e: E) => void | Promise<void>;
+type Handler<E extends AgentEvent = AgentEvent> = (e: E) => unknown;
 
 export type EventDraft<T extends AgentEventType> = Omit<AgentEventOf<T>, 'id' | 'ts'>;
 

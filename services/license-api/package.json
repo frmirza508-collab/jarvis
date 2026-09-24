@@ -1,0 +1,31 @@
+{
+  "name": "@jarvis/license-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/app.ts",
+  "exports": { ".": "./src/app.ts" },
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "start": "node dist/main.js",
+    "build": "node scripts/build.mjs",
+    "migrate": "tsx src/cli.ts migrate",
+    "create-admin": "tsx src/cli.ts create-admin",
+    "generate-keys": "tsx src/cli.ts generate-keys"
+  },
+  "dependencies": {
+    "@fastify/cors": "^11.3.0",
+    "@fastify/rate-limit": "^11.2.0",
+    "@jarvis/billing-core": "workspace:*",
+    "@jarvis/licensing": "workspace:*",
+    "@jarvis/shared": "workspace:*",
+    "@jarvis/security": "workspace:*",
+    "fastify": "^5.12.5",
+    "pg": "^8.23.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.23.1",
+    "esbuild": "^0.28.2"
+  }
+}

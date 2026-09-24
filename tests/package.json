@@ -25,10 +25,16 @@
     "@jarvis/terminal": "workspace:*",
     "@jarvis/tool-runtime": "workspace:*",
     "@jarvis/voice": "workspace:*",
-    "@jarvis/web-research": "workspace:*"
+    "@jarvis/web-research": "workspace:*",
+    "@jarvis/license-api": "workspace:*",
+    "@jarvis/orchestrator": "workspace:*",
+    "pg": "^8.23.0"
   },
   "devDependencies": {
     "playwright-core": "^1.63.0",
-    "zod": "^4.6.5"
+    "zod": "^4.6.5",
+    "@types/pg": "^8.23.1",
+    "ws": "^8.21.3",
+    "@types/ws": "^8.18.1"
   }
 }

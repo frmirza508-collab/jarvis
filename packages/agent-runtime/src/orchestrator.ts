@@ -26,6 +26,8 @@ export type Plan = z.infer<typeof PlanSchema>;
 
 export interface RequestInput {
   text: string;
+  /** Optional caller-supplied id so UIs can correlate streamed events. */
+  requestId?: string;
   sessionId?: string;
   language?: string;
 }
@@ -68,6 +70,11 @@ export class Orchestrator {
     private readonly hooks: OrchestratorHooks = {},
   ) {
     this.worker = new AgentWorker(deps);
+  }
+
+  /** Premium entitlement gate; callers can pre-check before accepting work. */
+  checkEntitlement(): { premium: boolean; reason?: string } {
+    return this.hooks.checkEntitlement?.() ?? { premium: true };
   }
 
   cancel(requestId: string): boolean {
@@ -148,10 +155,10 @@ Respond with JSON only: {"mode":"direct"|"delegate","language":"en"|"ur"|"zh"|<i
 
   async handle(input: RequestInput): Promise<RequestResult> {
     const { bus, memory } = this.deps;
-    const ent = this.hooks.checkEntitlement?.();
-    if (ent && !ent.premium) throw new JarvisError('LICENSE_REQUIRED', ent.reason ?? 'An active JARVIS subscription is required for task execution.');
+    const ent = this.checkEntitlement();
+    if (!ent.premium) throw new JarvisError('LICENSE_REQUIRED', ent.reason ?? 'An active JARVIS subscription is required for task execution.');
 
-    const requestId = newId('req');
+    const requestId = input.requestId ?? newId('req');
     const controller = new AbortController();
     this.active.set(requestId, controller);
     const signal = controller.signal;
