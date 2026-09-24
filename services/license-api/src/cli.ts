@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { generateSigningKeys } from '@jarvis/licensing';
 import { createPool, migrate } from './db.js';
@@ -22,7 +23,8 @@ async function main() {
   const db = createPool(url);
   try {
     if (cmd === 'migrate') {
-      const dir = process.env.MIGRATIONS_DIR ?? path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../infra/database/migrations');
+      const here = path.dirname(fileURLToPath(import.meta.url));
+      const dir = process.env.MIGRATIONS_DIR ?? [path.join(here, 'migrations'), path.resolve(here, '../../../infra/database/migrations')].find((d) => existsSync(d))!;
       const ran = await migrate(db, dir);
       process.stdout.write(ran.length ? `Applied: ${ran.join(', ')}\n` : 'Database up to date\n');
     } else if (cmd === 'create-admin') {

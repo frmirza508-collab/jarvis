@@ -4,7 +4,7 @@ import { mkdirSync } from 'node:fs';
 import { marked } from 'marked';
 import { isProtectedPath } from '@jarvis/security';
 import { defineTool, type ToolDefinition } from '@jarvis/tool-runtime';
-import type { BrowserSession } from './index.js';
+import { loadPlaywright, type BrowserSession } from './index.js';
 
 const STYLE = `
 body { font-family: 'Segoe UI', 'Noto Sans', 'Noto Nastaliq Urdu', 'Microsoft YaHei', sans-serif; margin: 40px; color: #111; line-height: 1.5; }
@@ -41,7 +41,7 @@ export function documentTools(session: BrowserSession): ToolDefinition[] {
       execute: async (i, ctx) => {
         const p = path.resolve(ctx.workspace ?? process.cwd(), i.path.endsWith('.pdf') ? i.path : `${i.path}.pdf`);
         mkdirSync(path.dirname(p), { recursive: true });
-        const { chromium } = await import('playwright-core');
+        const { chromium } = await loadPlaywright();
         const browser = await chromium.launch({ headless: true, executablePath: session.opts.executablePath, channel: session.opts.executablePath ? undefined : session.opts.channel });
         try {
           const page = await browser.newPage();

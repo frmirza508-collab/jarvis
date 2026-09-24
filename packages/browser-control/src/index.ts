@@ -27,6 +27,16 @@ function defaultOptions(): BrowserOptions {
   };
 }
 
+/**
+ * Loads playwright-core. Packaged builds (Node single-executable) ship it as a
+ * plain folder next to the executable and install a filesystem require hook.
+ */
+export async function loadPlaywright(): Promise<typeof import('playwright-core')> {
+  const req = (globalThis as { __JARVIS_REQUIRE__?: (id: string) => unknown }).__JARVIS_REQUIRE__;
+  if (req) return req('playwright-core') as typeof import('playwright-core');
+  return import('playwright-core');
+}
+
 export function assertSafeUrl(raw: string): string {
   let u: URL;
   try {
@@ -56,7 +66,7 @@ export class BrowserSession {
 
   async getPage(): Promise<Page> {
     if (this.page && !this.page.isClosed()) return this.page;
-    const { chromium } = await import('playwright-core');
+    const { chromium } = await loadPlaywright();
     const launch = {
       headless: this.opts.headless ?? false,
       executablePath: this.opts.executablePath,

@@ -1,0 +1,16 @@
+JARVIS — Proprietary Software License
+
+Copyright (c) 2026 the JARVIS product owner. All rights reserved.
+
+This software and its source code are proprietary. No part of it may be
+copied, modified, distributed, sublicensed or used except under a written
+license agreement with the copyright holder or, for end users, an active
+JARVIS subscription governed by the JARVIS Terms of Service.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM THE USE OF THE SOFTWARE.
+
+Third-party components (Node.js, Tauri, Microsoft Edge WebView2 loader,
+Playwright, React, Three.js and others) are distributed under their own
+licenses; their notices are retained in the distributed files.

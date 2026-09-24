@@ -1,8 +1,7 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readSync, writeFileSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
-import readline from 'node:readline';
 import { EncryptedFileSecretStore, StaticKeyProvider } from '@jarvis/security';
 import { Logger } from '@jarvis/shared';
 import { createJarvisCore, type CoreSettings } from './core.js';
@@ -33,6 +32,32 @@ function dataDirDefault(): string {
   return path.join(base, 'JARVIS');
 }
 
+/** Reads one line from fd 0 synchronously (works with anonymous pipes on every platform). */
+function readLineSync(timeoutMs: number): string {
+  const started = Date.now();
+  const chunks: Buffer[] = [];
+  const buf = Buffer.alloc(4096);
+  while (Date.now() - started < timeoutMs) {
+    let n = 0;
+    try {
+      n = readSync(0, buf, 0, buf.length, null);
+    } catch (e) {
+      const code = (e as NodeJS.ErrnoException).code;
+      if (code === 'EAGAIN') continue;
+      if (code === 'EOF') break;
+      throw e;
+    }
+    if (n === 0) break;
+    chunks.push(Buffer.from(buf.subarray(0, n)));
+    const text = Buffer.concat(chunks).toString('utf8');
+    const nl = text.indexOf('\n');
+    if (nl >= 0) return text.slice(0, nl).trim();
+  }
+  const text = Buffer.concat(chunks).toString('utf8').trim();
+  if (!text) throw new Error('No bootstrap received on stdin');
+  return text;
+}
+
 async function readBootstrap(): Promise<Bootstrap> {
   if (process.env.JARVIS_DEV === '1' && !IS_RELEASE) {
     const dataDir = process.env.JARVIS_DATA_DIR ?? path.join(process.cwd(), '.jarvis-data');
@@ -46,15 +71,7 @@ async function readBootstrap(): Promise<Bootstrap> {
       port: Number(process.env.JARVIS_PORT ?? 7801),
     };
   }
-  const rl = readline.createInterface({ input: process.stdin });
-  const line = await new Promise<string>((resolve, reject) => {
-    const t = setTimeout(() => reject(new Error('No bootstrap received on stdin')), 30_000);
-    rl.once('line', (l) => {
-      clearTimeout(t);
-      resolve(l);
-    });
-  });
-  rl.close();
+  const line = readLineSync(30_000);
   const b = JSON.parse(line) as Bootstrap;
   if (!b.token || b.token.length < 32 || !b.masterKey) throw new Error('Invalid bootstrap');
   return b;
@@ -101,7 +118,10 @@ async function main(): Promise<void> {
   process.stdout.write(`JARVIS_READY ${JSON.stringify({ port, version: APP_VERSION, dataDir })}\n`);
   log.info('JARVIS core ready', { port, release: IS_RELEASE, dev: DEVELOPMENT_LICENSE_MODE });
 
+  let stopping = false;
   const shutdown = async () => {
+    if (stopping) return;
+    stopping = true;
     license?.stop();
     await server.close();
     await core.shutdown();
@@ -109,13 +129,32 @@ async function main(): Promise<void> {
   };
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
-  // The shell closing our stdin means the desktop app exited.
-  if (process.env.JARVIS_DEV !== '1') process.stdin.on('end', shutdown);
+  // The shell closing our stdin means the desktop app exited (or crashed): never linger as an orphan.
+  if (process.env.JARVIS_DEV !== '1') {
+    try {
+      process.stdin.on('end', shutdown);
+      process.stdin.on('close', shutdown);
+      process.stdin.resume();
+    } catch (e) {
+      log.warn('stdin watch unavailable; relying on parent watchdog', { error: (e as Error).message });
+    }
+    // Watchdog: exit if the desktop shell process disappears.
+    const parent = process.ppid;
+    setInterval(() => {
+      try {
+        process.kill(parent, 0);
+      } catch {
+        void shutdown();
+      }
+    }, 5000).unref();
+  }
   process.on('uncaughtException', (e) => log.error('uncaught exception', { error: e.message, stack: e.stack }));
   process.on('unhandledRejection', (e) => log.error('unhandled rejection', { error: String(e) }));
 }
 
 main().catch((e) => {
-  console.error(`JARVIS_FATAL ${(e as Error).message}`);
+  // Printed on stdout so the desktop shell can surface it; full stack goes to the log (stderr).
+  process.stdout.write(`JARVIS_FATAL ${(e as Error).message}\n`);
+  console.error((e as Error).stack);
   process.exit(1);
 });

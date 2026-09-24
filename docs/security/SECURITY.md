@@ -1,0 +1,44 @@
+# Security Guide and Threat Review
+
+## Controls implemented
+| Area | Control | Where |
+|---|---|---|
+| Secrets at rest | AES-256-GCM file, 32-byte key in Windows Credential Manager; write-only API; never logged | `packages/security/secret-store.ts`, `apps/desktop/src-tauri/src/lib.rs` |
+| Redaction | Provider keys, bearer tokens, private keys, DB passwords, sensitive object keys | `packages/security/redaction.ts` (logger, audit, memory, model request log, tool output) |
+| Least privilege | Per-agent tool allow-lists and permission categories; skills restricted to declared tools | `agent-runtime/worker.ts`, `skills` |
+| Permission prompts | Risk-based confirmation; critical always confirms; rules only created by the user | `packages/permissions` |
+| Dangerous commands | Risk scoring + hard block-list (format, diskpart, fork bomb, shadow-copy deletion, bcdedit, Defender/firewall disabling, credential dumping, SAM export) | `packages/security/command-safety.ts` |
+| File safety | Protected system paths never written; credential files require SENSITIVE; delete is DESTRUCTIVE | `packages/security/path-safety.ts`, `file-system` |
+| Child processes | JARVIS/OpenRouter/Stripe/DB env vars stripped; output capped and redacted; timeouts | `terminal` |
+| Prompt injection | `<untrusted_content>` envelope, breakout neutralisation, pattern scan + UI warning, system policy text, no permission changes from content | `untrusted-content.ts`, browser/web tools |
+| Browser | http(s) only; dedicated profile; uploads always confirm | `browser-control` |
+| Local API | 127.0.0.1 only; 256-bit per-launch token (timing-safe compare); CORS limited to the Tauri origin; WebSocket requires token | `services/orchestrator/src/server.ts` |
+| Audit | Append-only SHA-256 hash chain; integrity shown in UI | `packages/audit` |
+| Licensing | Ed25519 signatures; public key only in client (build refuses private key); nonce anti-replay; device-bound; trusted time + monotonic offline window; server authoritative | `packages/licensing`, `services/license-api` |
+| Webhooks | Signature verified on raw body before persistence; timestamp tolerance; idempotent by provider event id | `license-api/providers`, `services/webhooks.ts` |
+| Admin | scrypt password hashes, hashed session tokens (12 h), role checks (admin/support), rate limits, audit of every admin action | `license-api` |
+| Updates | Installer SHA-256 published; Authenticode signing supported (`JARVIS_SIGN_PFX`) | `scripts/build/package-windows.mjs` |
+
+## Threat review (Phase 14)
+| Threat | Mitigation | Residual risk / follow-up |
+|---|---|---|
+| API key theft | Encrypted store, key in Credential Manager, write-only API, redaction, env scrubbing | Malware running as the same Windows user can query Credential Manager; standard for desktop apps |
+| License forgery | Ed25519; verification tested with forged payloads/foreign keys | Attacker can patch the binary to skip checks — mitigated only by code signing/obfuscation; server still controls paid features that call the API |
+| Device spoofing | Fingerprint hash of MachineGuid bound in token; server device limit | MachineGuid can be cloned by a determined user; admin can revoke devices |
+| Clock tampering | Trusted-time anchor from server, rollback detection, monotonic offline counter, bounded token TTL | Offline window (default 72 h) is the maximum exposure |
+| Response replay | Client nonce echoed and verified | — |
+| Prompt injection | Envelope + scan + tool allow-lists + human confirmation for protected actions | Models may still be misled into low-risk reads; nothing high-risk runs without the user |
+| Malicious websites | Separate automation profile, http(s) only, no auto-upload, downloads confirm | Browser exploits are Edge's responsibility; keep Edge updated |
+| Arbitrary shell commands | EXECUTE is high risk → confirmation; block-list | User can approve harmful commands; prompts show the exact command and reasons |
+| File deletion | DESTRUCTIVE always confirms; protected paths blocked | — |
+| Privilege escalation | Per-user install, no admin; runas/sudo flagged high risk; core runs as the user | — |
+| Local data exposure | Data under the user profile; secrets encrypted; audit and memory redact secrets | Memory and history are plaintext SQLite (by design, for search). Use BitLocker for disk encryption |
+| Local API abuse by other local apps/web pages | Loopback bind, random port, token, CORS | A local process with the user's rights could read the token from the core's memory |
+| Admin access | Strong passwords (≥10), hashed sessions, roles, rate limits, audit | Add TOTP/SSO before exposing the admin portal publicly (recommended) |
+| Webhook spoofing | HMAC/Stripe signatures on raw body, timestamp tolerance, idempotency | — |
+
+## Operational guidance
+- Run the license API behind TLS; set `TRUST_PROXY=true` behind a proxy so rate limits see real client IPs.
+- Store `LICENSE_SIGNING_PRIVATE_KEY` in a secret manager; rotate by issuing a new keypair, shipping a desktop update with the new public key, then switching the server.
+- Restrict `ADMIN_ORIGINS` to the admin portal origin. Host the admin portal on a separate domain.
+- Sign `JARVIS.exe`, `jarvis-core.exe` and the installer with an EV/OV Authenticode certificate to avoid SmartScreen warnings.
